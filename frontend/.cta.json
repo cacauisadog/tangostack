@@ -9,11 +9,16 @@
   "projectPreset": "default",
   "routerOnly": false,
   "addOnOptions": {},
-  "git": true,
+  "git": false,
   "install": true,
   "intent": true,
   "version": 1,
   "framework": "react",
-  "chosenAddOns": ["nitro", "compiler", "tanstack-query", "t3env"]
+  "chosenAddOns": [
+    "nitro",
+    "compiler",
+    "shadcn",
+    "t3env",
+    "tanstack-query"
+  ]
 }
-
