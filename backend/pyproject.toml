@@ -28,3 +28,28 @@ dev = [
   "pytest-xdist>=3.8.0",
   "ruff>=0.17.1",
 ]
+
+#### tool configuration
+
+[tool.ruff.lint]
+extend-select = [
+  "DJ", # flake8-django: Django-specific bugs
+  "E", # pycodestyle errors
+  "F", # Pyflakes
+  "W", # pycodestyle warnings
+  "I", # isort
+  "UP", # pyupgrade
+  "B", # flake8-bugbear
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/*.py" = ["E501", "RUF012"]
+"**/settings.py" = ["E501", "F403", "F405"]
+"**/tests.py" = ["S101"]
+"**/test_*.py" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tangostack"]
+DJANGO_SETTINGS_MODULE = "tangostack.settings"
+python_files = ["tests.py", "test_*.py"]
+addopts = "--reuse-db --durations=1"
