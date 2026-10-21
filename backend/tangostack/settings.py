@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 
+import dj_database_url
+from decouple import Csv, config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'tangostack.apps.core',
 ]
 
 MIDDLEWARE = [
@@ -69,14 +73,18 @@ TEMPLATES = [
 WSGI_APPLICATION = 'tangostack.wsgi.application'
 
 
-# Database
+# ==============================================================================
+# DATABASES SETTINGS
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
-
+# ==============================================================================
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    "default": dj_database_url.config(
+        default=config(
+            "DATABASE_URL",
+            default="postgres://postgres:postgres@localhost:5432/tangostack",
+        ),  # type: ignore
+        conn_max_age=600,
+    )
 }
 
 
