@@ -22,7 +22,7 @@ class TestUserCreation:
         assert user.is_superuser is False
 
         with pytest.raises(AttributeError):
-            user.username
+            _ = user.username
         with pytest.raises(TypeError):
             django_user_model.objects.create_user()
         with pytest.raises(TypeError):
@@ -40,7 +40,7 @@ class TestUserCreation:
         assert admin_user.is_superuser is True
 
         with pytest.raises(AttributeError):
-            admin_user.username
+            _ = admin_user.username
         with pytest.raises(TypeError):
             django_user_model.objects.create_superuser(email="")
         with pytest.raises(ValueError, match="The email must be set"):
@@ -75,7 +75,10 @@ class TestEmailCIProperties:
         django_user_model.objects.create_user(
             email="Hacker@example.com", password="password123"
         )
-        msg = 'duplicate key value violates unique constraint "accounts_customuser_email_key"'
+        msg = (
+            "duplicate key value violates unique constraint "
+            '"accounts_customuser_email_key"'
+        )
         with pytest.raises(IntegrityError, match=msg):
             django_user_model.objects.create_user(
                 email="hacker@example.com", password="password123"
@@ -116,14 +119,16 @@ class TestCustomUserMethods:
 
 class TestCustomUserAdmin:
     """
-    Tests to guarantee that filtering and searching users in the admin works as expected.
+    Tests to guarantee that filtering and searching users in the admin works as
+    expected.
 
-    Since in our CustomUser `email` is case-insensitive and nondeterministic, it ends up
-    triggering the following error on Django's admin:
+    Since in our CustomUser `email` is case-insensitive and nondeterministic, it
+    ends up triggering the following error on Django's admin:
     `NotSupportedError: nondeterministic collations are not supported for LIKE`
-    This happens because some Django lookups are mapped to SQL's `LIKE`, and PostgreSQL
-    does not allow these types of queries on nondeterministic collations. One of these lookups
-    is `icontains`, which is what Django admin uses by default on its `search_fields`.
+    This happens because some Django lookups are mapped to SQL's `LIKE`, and
+    PostgreSQL does not allow these types of queries on nondeterministic
+    collations. One of these lookups is `icontains`, which is what Django admin
+    uses by default on its `search_fields`.
 
     https://adamj.eu/tech/2023/02/23/migrate-django-postgresql-ci-fields-case-insensitive-collation/
     """
