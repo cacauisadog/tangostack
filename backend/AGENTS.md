@@ -65,6 +65,8 @@ backend/
 ├── pyproject.toml            # deps, Ruff and pytest config
 ├── uv.lock
 ├── .python-version
+├── scripts/
+│   └── startapp.py           # used by `make startapp`
 └── tangostack/               # Django project package (no config/ dir)
     ├── settings.py           # single settings module
     ├── urls.py
@@ -86,6 +88,38 @@ backend/
 
 Apps are registered as `tangostack.apps.<name>`. Follow this layout when
 adding apps; there is no top-level `tests/` directory yet.
+
+### Creating Apps
+
+All new Django apps must live in `tangostack/apps/`. Never run a bare
+`manage.py startapp` (it creates the app in the wrong place with the
+wrong `name`). Create apps from the repository root with:
+
+```bash
+make startapp name=<app_name>   # snake_case, e.g. billing_items
+```
+
+This runs `backend/scripts/startapp.py`, which:
+
+1. runs `manage.py startapp` into `tangostack/apps/<app_name>/`;
+2. rewrites the app's `apps.py` so the config uses the full dotted path,
+   as in `apps/core/apps.py`:
+
+   ```python
+   class BillingItemsConfig(AppConfig):
+       name = "tangostack.apps.billing_items"
+   ```
+
+3. adds `"tangostack.apps.<app_name>"` to `INSTALLED_APPS` in
+   `tangostack/settings.py`, keeping the project apps sorted.
+
+The script rejects missing, invalid (non snake_case), or already
+existing names. If you create or rename an app by hand, make the same
+two changes (`apps.py` `name` and `INSTALLED_APPS`) yourself. After
+creating an app, remove unused scaffold imports (the generated
+`admin.py`, `models.py`, `tests.py`, `views.py` stubs fail
+`ruff check` with F401 until filled in) and add the app's tests under
+its `tests/` package or `tests.py`.
 
 - `tangostack/` contains project configuration and Django entry points.
 - Each Django app owns its domain models, API endpoints and schemas,
@@ -324,6 +358,7 @@ prefer it from the repo root:
 | `make db-up` / `make db-down`             | start/stop PostgreSQL via docker compose     |
 | `make run`                                | `manage.py runserver`                        |
 | `make migrate`                            | `manage.py migrate`                          |
+| `make startapp name=<app_name>`           | `scripts/startapp.py` (see "Creating Apps")  |
 | `make makemigrations [app=<name>]`        | `manage.py makemigrations`                   |
 | `make check-migrations`                   | `manage.py makemigrations --check --dry-run` |
 | `make shell` / `make dbshell`             | `manage.py shell` / `dbshell`                |

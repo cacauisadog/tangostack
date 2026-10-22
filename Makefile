@@ -3,7 +3,7 @@ MANAGE = cd backend && uv run python manage.py
 .DEFAULT_GOAL := help
 
 .PHONY: help db-up db-down run migrate makemigrations check-migrations \
-	shell dbshell superuser check test test-fresh lint format
+	startapp shell dbshell superuser check test test-fresh lint format
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -26,6 +26,10 @@ makemigrations: ## Create migrations (optional: app=<name>)
 
 check-migrations: ## Fail if model changes lack migrations
 	$(MANAGE) makemigrations --check --dry-run
+
+startapp: ## Create a Django app in tangostack/apps (required: name=<app>)
+	@test -n "$(name)" || { echo "Usage: make startapp name=<app_name>"; exit 1; }
+	cd backend && uv run python scripts/startapp.py $(name)
 
 shell: ## Open the Django shell
 	$(MANAGE) shell
