@@ -331,7 +331,8 @@ prefer it from the repo root:
 | `make check` | `manage.py check` |
 | `make test [args="-k name"]` | `uv run pytest` |
 | `make test-fresh [args=...]` | `uv run pytest --create-db` |
-| `make lint` / `make format` | `uv run ruff check .` / `ruff format .` |
+| `make lint [args="--fix --unsafe-fixes"]` | `uv run ruff check .` |
+| `make format` | `uv run ruff format .` |
 
 Keep the Makefile in sync when adding commands. The equivalent raw
 commands, run from `backend/` unless noted:

@@ -45,8 +45,8 @@ test: ## Run backend tests (optional: args="-k name")
 test-fresh: ## Run backend tests with a recreated test DB
 	cd backend && uv run pytest --create-db $(args)
 
-lint: ## Lint the backend with Ruff
-	cd backend && uv run ruff check .
+lint: ## Lint the backend with Ruff (optional: args="--fix --unsafe-fixes")
+	cd backend && uv run ruff check . $(args)
 
 format: ## Format the backend with Ruff
 	cd backend && uv run ruff format .
