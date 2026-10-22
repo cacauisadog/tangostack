@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { Button } from "#/components/ui/button";
+import { Input } from "#/components/ui/input";
 
 interface InlineFormProps {
-  triggerLabel: string
-  placeholder: string
-  submitLabel: string
-  onSubmit: (value: string) => void
+  triggerLabel: string;
+  placeholder: string;
+  submitLabel: string;
+  onSubmit: (value: string) => void;
 }
 
 /** Button that expands into an input; Enter submits, Escape cancels. */
@@ -17,20 +17,20 @@ export default function InlineForm({
   submitLabel,
   onSubmit,
 }: InlineFormProps) {
-  const [open, setOpen] = useState(false)
-  const [value, setValue] = useState('')
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
 
   function close() {
-    setOpen(false)
-    setValue('')
+    setOpen(false);
+    setValue("");
   }
 
   function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    const trimmed = value.trim()
-    if (!trimmed) return
-    onSubmit(trimmed)
-    setValue('')
+    e.preventDefault();
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    onSubmit(trimmed);
+    setValue("");
   }
 
   if (!open) {
@@ -38,7 +38,7 @@ export default function InlineForm({
       <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
         + {triggerLabel}
       </Button>
-    )
+    );
   }
 
   return (
@@ -48,7 +48,7 @@ export default function InlineForm({
         value={value}
         placeholder={placeholder}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => e.key === 'Escape' && close()}
+        onKeyDown={(e) => e.key === "Escape" && close()}
       />
       <Button type="submit" disabled={!value.trim()}>
         {submitLabel}
@@ -57,5 +57,5 @@ export default function InlineForm({
         Cancel
       </Button>
     </form>
-  )
+  );
 }

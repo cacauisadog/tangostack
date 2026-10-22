@@ -14,11 +14,5 @@
   "intent": true,
   "version": 1,
   "framework": "react",
-  "chosenAddOns": [
-    "nitro",
-    "compiler",
-    "shadcn",
-    "t3env",
-    "tanstack-query"
-  ]
+  "chosenAddOns": ["nitro", "compiler", "shadcn", "t3env", "tanstack-query"]
 }

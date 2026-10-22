@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import InlineForm from './InlineForm'
-import TodoListCard from './TodoListCard'
-import type { TodoList } from './types'
+import { useState } from "react";
+import InlineForm from "./InlineForm";
+import TodoListCard from "./TodoListCard";
+import type { TodoList } from "./types";
 
 export default function TodoApp() {
-  const [lists, setLists] = useState<TodoList[]>([])
+  const [lists, setLists] = useState<TodoList[]>([]);
 
   function addList(name: string) {
-    setLists((prev) => [...prev, { id: crypto.randomUUID(), name, todos: [] }])
+    setLists((prev) => [...prev, { id: crypto.randomUUID(), name, todos: [] }]);
   }
 
   function addTodo(listId: string, text: string) {
@@ -16,14 +16,11 @@ export default function TodoApp() {
         list.id === listId
           ? {
               ...list,
-              todos: [
-                ...list.todos,
-                { id: crypto.randomUUID(), text, done: false },
-              ],
+              todos: [...list.todos, { id: crypto.randomUUID(), text, done: false }],
             }
           : list,
       ),
-    )
+    );
   }
 
   function toggleTodo(listId: string, todoId: string) {
@@ -38,7 +35,7 @@ export default function TodoApp() {
             }
           : list,
       ),
-    )
+    );
   }
 
   return (
@@ -54,9 +51,7 @@ export default function TodoApp() {
       </div>
 
       {lists.length === 0 ? (
-        <p className="text-muted-foreground">
-          No lists yet. Create one to get started.
-        </p>
+        <p className="text-muted-foreground">No lists yet. Create one to get started.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {lists.map((list) => (
@@ -70,5 +65,5 @@ export default function TodoApp() {
         </div>
       )}
     </div>
-  )
+  );
 }
