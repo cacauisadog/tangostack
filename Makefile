@@ -1,12 +1,15 @@
 MANAGE = cd backend && uv run python manage.py
+FE = cd frontend && pnpm
 
 .DEFAULT_GOAL := help
 
 .PHONY: help db-up db-down run migrate makemigrations check-migrations \
-	startapp shell dbshell superuser check test test-fresh lint format
+	startapp shell dbshell superuser check test test-fresh lint format \
+	fe-install fe-dev fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
+	fe-typecheck fe-check
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 db-up: ## Start PostgreSQL
@@ -54,3 +57,32 @@ lint: ## Lint the backend with Ruff (optional: args="--fix --unsafe-fixes")
 
 format: ## Format the backend with Ruff
 	cd backend && uv run ruff format .
+
+fe-install: ## Install frontend dependencies
+	$(FE) install
+
+fe-dev: ## Run the frontend dev server
+	$(FE) dev
+
+fe-build: ## Build the frontend
+	$(FE) build
+
+fe-test: ## Run frontend unit tests
+	$(FE) test
+
+fe-e2e: ## Run frontend Playwright tests
+	$(FE) e2e
+
+fe-lint: ## Lint the frontend with Oxlint (optional: args="--fix")
+	$(FE) lint $(args)
+
+fe-format: ## Format the frontend with Oxfmt
+	$(FE) format
+
+fe-format-check: ## Fail if the frontend is not formatted
+	$(FE) format:check
+
+fe-typecheck: ## Type-check the frontend
+	$(FE) typecheck
+
+fe-check: fe-lint fe-format-check fe-typecheck fe-test ## Run all frontend checks
