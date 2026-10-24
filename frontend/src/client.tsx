@@ -4,7 +4,8 @@ import { hydrateRoot } from "react-dom/client";
 import { enableMocking } from "#/mocks/enable";
 
 // Wait for the mock worker so the first request is already intercepted.
-enableMocking().then(() => {
+enableMocking().then((shouldHydrate) => {
+  if (!shouldHydrate) return; // the page is reloading
   hydrateRoot(
     document,
     <StrictMode>
