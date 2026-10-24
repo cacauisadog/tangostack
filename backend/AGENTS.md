@@ -22,12 +22,14 @@ The backend is the source of truth for API behavior, request/response
 schemas, validation, and the OpenAPI contract. Do not use Django REST
 Framework unless the project owner explicitly changes this decision.
 
-**Current state:** the backend is early-stage. Django Ninja and
-django-allauth are installed in `pyproject.toml` but not yet wired up:
-they are not in `INSTALLED_APPS`, there is no `NinjaAPI` instance, and
-`tangostack/urls.py` only routes `admin/`. The only implemented domain
-code is the custom user model in `apps/accounts`. The frontend has an
-`api:generate` (`orval`) script, but no Orval config exists yet.
+**Current state:** `apps/accounts` holds the custom user model and
+`apps/core` holds the to-do domain (`TodoList`, `Todo`) and its API. Django
+Ninja is wired up: `tangostack/api.py` creates the `NinjaAPI` instance, mounts
+the `core` router, and `tangostack/urls.py` serves it at `/api/`. The exported
+OpenAPI schema is committed as `api/openapi.json` at the repository root and
+feeds the frontend's Orval client. `django-allauth` is installed but not yet
+configured (not in `INSTALLED_APPS`, no auth backends or URLs), so the API has
+no authentication yet and the to-do lists are global.
 
 ## Stack and Dependencies
 
@@ -69,13 +71,17 @@ backend/
 │   └── startapp.py           # used by `make startapp`
 └── tangostack/               # Django project package (no config/ dir)
     ├── settings.py           # single settings module
+    ├── api.py                # NinjaAPI instance; add each app's router here
     ├── urls.py
     ├── asgi.py
     ├── wsgi.py
     └── apps/
-        ├── core/             # shared infrastructure
-        │   ├── migrations/0001_case_insensitive_collation.py
-        │   └── tests.py
+        ├── core/             # shared infrastructure + the to-do domain
+        │   ├── models.py     # TodoList, Todo
+        │   ├── schemas.py    # Ninja request/response schemas
+        │   ├── api.py        # Ninja router (list/create/update endpoints)
+        │   ├── migrations/   # 0001 collation, 0002 to-do models
+        │   └── tests/        # test_models.py, test_api.py, test_openapi.py
         └── accounts/         # custom user model
             ├── models.py     # CustomUser
             ├── managers.py   # CustomUserManager
@@ -127,9 +133,9 @@ its `tests/` package or `tests.py`.
 - `apps/core` holds cross-cutting database setup. Its migration creates
   the `case_insensitive` ICU collation used by `CustomUser.email`; apps
   that use it must depend on that migration.
-- When Django Ninja is introduced, use `schemas.py` for request/response
-  schemas and `api.py` for routes in each app (these files do not
-  exist yet).
+- Each app keeps its Django Ninja request/response schemas in `schemas.py`
+  and its routes in a `Router` in `api.py`; register the router in
+  `tangostack/api.py`.
 - Put reusable domain operations in `services.py` when doing so keeps
   endpoints thin and logic reusable. Do not create service layers or
   abstractions that add no value.
@@ -245,28 +251,39 @@ its `tests/` package or `tests.py`.
 
 ## Frontend Contract and OpenAPI
 
-The backend owns the API contract consumed by TanStack Start.
+The backend owns the API contract consumed by TanStack Start. The frontend
+sketches screens against mocks first, but the final shape of the API is whatever
+the Ninja schemas here say; the frontend then conforms to it (see the root
+`AGENTS.md` for the full workflow and the API conventions).
 
 When changing an endpoint or schema:
 
-1. Update the Django Ninja endpoint and its request/response schemas.
-2. Keep operation IDs stable unless a deliberate rename is required.
-3. Generate or inspect the OpenAPI schema using the repository's
-   documented command.
-4. Run the Orval client-generation workflow from the frontend or
-   root-level script as documented.
-5. Check generated-client changes into version control only if that is
-   the repository's established policy.
-6. Run backend tests and the relevant frontend type-check or contract
-   check.
+1. Update the Django Ninja endpoint and its request/response schemas. Set
+   `operation_id` explicitly, declare every status code the endpoint returns
+   (including `404` and `422`), and keep operation IDs stable unless a
+   deliberate rename is required.
+2. Run `make api-export` from the repository root. It writes the schema to
+   `api/openapi.json`, which is committed. `test_openapi.py` fails when that
+   file is stale.
+3. Run `make fe-api-generate` (or `make api-generate` for steps 2 and 3) to
+   regenerate the Orval client in `frontend/src/api/generated/` (committed).
+4. Fix whatever the frontend typecheck reports (mocks, seed data, UI, tests) and
+   run `make fe-check`.
+5. Run the backend tests.
 
-Do not hand-edit generated TypeScript client files. Do not maintain a
-separate handwritten copy of API types in the backend and frontend. If a
-schema change is intentionally breaking, identify the compatibility
-impact and coordinate the change with the frontend.
+Do not hand-edit `api/openapi.json` or the generated TypeScript client. Do not
+maintain a separate handwritten copy of API types in the backend and frontend.
+If a schema change is intentionally breaking, identify the compatibility impact
+and coordinate the change with the frontend.
 
-If the exact generation command is not documented, inspect the existing
-scripts and configuration before inventing a new workflow.
+- Use `Status(code, body)` for non-default status codes; returning a
+  `(code, body)` tuple is deprecated in Ninja.
+- Strip and validate text input in the schema (`StringConstraints`), with
+  `max_length` equal to the model's column size.
+- Use `save()` when updating a model instance so `auto_now` fields are bumped;
+  `QuerySet.update()` skips them.
+- Prefetch related rows in list endpoints and cover the query count with
+  `django_assert_num_queries`.
 
 ## Testing
 
@@ -364,6 +381,8 @@ prefer it from the repo root:
 | `make shell` / `make dbshell`             | `manage.py shell` / `dbshell`                |
 | `make superuser`                          | `manage.py createsuperuser`                  |
 | `make check`                              | `manage.py check`                            |
+| `make api-export`                         | export the OpenAPI schema to `api/openapi.json` |
+| `make api-generate`                       | `api-export`, then regenerate the frontend client |
 | `make test [args="-k name"]`              | `uv run pytest`                              |
 | `make test-fresh [args=...]`              | `uv run pytest --create-db`                  |
 | `make lint [args="--fix --unsafe-fixes"]` | `uv run ruff check .`                        |

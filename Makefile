@@ -6,7 +6,7 @@ FE = cd frontend && pnpm
 .PHONY: help db-up db-down run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser check test test-fresh lint format \
 	fe-install fe-dev fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
-	fe-typecheck fe-check fe-api-generate
+	fe-typecheck fe-check fe-api-generate api-export api-generate
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -85,7 +85,12 @@ fe-format-check: ## Fail if the frontend is not formatted
 fe-typecheck: ## Type-check the frontend
 	$(FE) typecheck
 
-fe-api-generate: ## Regenerate the API client from api/openapi.yaml
+fe-api-generate: ## Regenerate the frontend API client from api/openapi.json
 	$(FE) api:generate
+
+api-export: ## Export the OpenAPI schema from Django Ninja to api/openapi.json
+	mkdir -p api && $(MANAGE) export_openapi_schema --api tangostack.api.api --output ../api/openapi.json --indent 2 --sorted
+
+api-generate: api-export fe-api-generate ## Export the OpenAPI schema, then regenerate the frontend client
 
 fe-check: fe-lint fe-format-check fe-typecheck fe-test ## Run all frontend checks

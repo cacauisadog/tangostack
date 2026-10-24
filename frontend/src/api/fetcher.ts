@@ -1,21 +1,37 @@
 import { env } from "#/env";
 import { isMockingEnabled, reactivateMocking } from "#/mocks/enable";
 
-export class ApiError extends Error {
-  status: number;
-  body: unknown;
+type ErrorDetail = string | Array<{ loc: Array<string | number>; msg: string }>;
 
-  constructor(status: number, body: unknown) {
-    const message =
-      typeof body === "object" && body !== null && "message" in body
-        ? String(body.message)
-        : `Request failed with status ${status}`;
-    super(message);
+/** Turns Ninja's `{ detail }` error bodies into a readable message. */
+function describeDetail(detail: ErrorDetail): string {
+  if (typeof detail === "string") return detail;
+  return detail
+    .map(({ loc, msg }) => {
+      const field = loc.filter((part) => part !== "body" && part !== "payload").join(".");
+      return field ? `${field}: ${msg}` : msg;
+    })
+    .join("; ");
+}
+
+export class ApiError<TBody = unknown> extends Error {
+  status: number;
+  body: TBody;
+
+  constructor(status: number, body: TBody) {
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? (body.detail as ErrorDetail)
+        : undefined;
+    super(detail ? describeDetail(detail) : `Request failed with status ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
   }
 }
+
+/** Orval uses this as the `error` type of the generated hooks. */
+export type ErrorType<TBody> = ApiError<TBody>;
 
 function resolveUrl(url: string) {
   const base = env.VITE_API_URL ?? globalThis.location?.origin;
@@ -28,7 +44,7 @@ function notJsonError(url: string, response: Response) {
     ? "API mocking is on: is the MSW worker controlling this page? Check navigator.serviceWorker.controller in the console, then do a normal reload."
     : "Is the API reachable? Check VITE_API_URL.";
   return new ApiError(response.status, {
-    message: `Expected JSON from ${url} but got ${received} (HTTP ${response.status}). ${hint}`,
+    detail: `Expected JSON from ${url} but got ${received} (HTTP ${response.status}). ${hint}`,
   });
 }
 

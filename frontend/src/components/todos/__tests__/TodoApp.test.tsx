@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { expect, test } from "vitest";
 import { db } from "#/mocks/db";
 import { server } from "#/mocks/server";
+import { todo, todoList } from "#/test/factories";
 import { renderWithClient } from "#/test/render";
 import TodoApp from "../TodoApp";
 
@@ -47,14 +48,10 @@ test("shows a loading state, then the empty state", async () => {
 
 test("renders lists and todos from the API", async () => {
   db.reset([
-    {
-      id: "l1",
+    todoList({
       name: "Work",
-      todos: [
-        { id: "t1", text: "ship it", done: true },
-        { id: "t2", text: "celebrate", done: false },
-      ],
-    },
+      todos: [todo({ text: "ship it", done: true }), todo({ text: "celebrate" })],
+    }),
   ]);
   await setup();
 
@@ -67,9 +64,7 @@ test("renders lists and todos from the API", async () => {
 });
 
 test("shows an error state when the lists request fails", async () => {
-  server.use(
-    http.get("*/api/lists", () => HttpResponse.json({ message: "boom" }, { status: 500 })),
-  );
+  server.use(http.get("*/api/lists", () => HttpResponse.json({ detail: "boom" }, { status: 500 })));
   renderWithClient(<TodoApp />);
 
   expect(await screen.findByText(/couldn't load your lists/i)).toBeInTheDocument();
@@ -155,12 +150,10 @@ test("toggling a task does not affect other lists or tasks", async () => {
 });
 
 test("rolls back an optimistic toggle when the request fails", async () => {
-  db.reset([{ id: "l1", name: "Work", todos: [{ id: "t1", text: "ship it", done: false }] }]);
+  db.reset([todoList({ name: "Work", todos: [todo({ text: "ship it" })] })]);
   const { user } = await setup();
   server.use(
-    http.patch("*/api/todos/:todoId", () =>
-      HttpResponse.json({ message: "nope" }, { status: 500 }),
-    ),
+    http.patch("*/api/todos/:todoId", () => HttpResponse.json({ detail: "nope" }, { status: 500 })),
   );
 
   await user.click(screen.getByRole("checkbox", { name: "ship it" }));
@@ -169,17 +162,30 @@ test("rolls back an optimistic toggle when the request fails", async () => {
   expect(screen.getByRole("checkbox", { name: "ship it" })).not.toBeChecked();
 });
 
-test("shows an error when creating a list fails", async () => {
+test("shows the API's validation message when creating a list is rejected", async () => {
   const { user } = await setup();
   server.use(
     http.post("*/api/lists", () =>
-      HttpResponse.json({ message: "name is taken" }, { status: 422 }),
+      HttpResponse.json(
+        {
+          detail: [
+            {
+              type: "string_too_short",
+              loc: ["body", "payload", "name"],
+              msg: "String should have at least 1 character",
+            },
+          ],
+        },
+        { status: 422 },
+      ),
     ),
   );
 
   await user.click(screen.getByRole("button", { name: /new list/i }));
   await user.type(screen.getByPlaceholderText("List name"), "Work{Enter}");
 
-  expect(await screen.findByRole("alert")).toHaveTextContent("name is taken");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "name: String should have at least 1 character",
+  );
   expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument();
 });

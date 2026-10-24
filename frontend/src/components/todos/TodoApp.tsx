@@ -37,7 +37,9 @@ export default function TodoApp() {
               ...old,
               data: old.data.map((list) => ({
                 ...list,
-                todos: list.todos.map((todo) => (todo.id === todoId ? { ...todo, ...data } : todo)),
+                todos: list.todos.map((todo) =>
+                  todo.id === todoId ? { ...todo, done: data.done ?? todo.done } : todo,
+                ),
               })),
             },
         );

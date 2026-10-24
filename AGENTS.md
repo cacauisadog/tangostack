@@ -1,50 +1,70 @@
 # Tangostack Agent Instructions
 
-Repository-wide rules. `backend/AGENTS.md` adds backend-specific rules; where
-the two conflict on **how a new API is designed**, this file wins (see
-"Contract ownership" below).
+Repository-wide rules. `backend/AGENTS.md` adds backend-specific rules.
 
-## Feature workflow: frontend first, mock first
+## Feature workflow: sketch on the frontend, build on the backend
 
-Use this for every new frontend or full-stack feature. Do not start with the
-backend.
+Use this for every new frontend or full-stack feature. The frontend is where we
+discover what data a screen needs; the **backend decides the final shape of the
+API**, and the frontend then conforms to it.
 
-1. **Contract first.** Define or change the endpoints and data shapes in
-   `api/openapi.yaml`. This is cheap to change: no migrations, no models.
-2. **Generate.** Run `make fe-api-generate` to regenerate the typed client and
-   React Query hooks in `frontend/src/api/generated/` (committed, never
-   hand-edited).
-3. **Mock data first.** Add typed seed data and handlers in
-   `frontend/src/mocks/`. Mock the API at the HTTP layer with MSW so the real
-   client code runs in dev, tests and the browser.
-4. **Build the UI against the mock** until the shape and the behavior feel right.
-   Iterate on the contract and mocks freely during this phase.
-5. **Only then build the backend:** Django models, migrations and the Ninja
-   endpoints, implementing the agreed contract.
-6. **Switch off the mock** (`VITE_API_MOCKING=false`) and verify against the
-   real backend. No app code should need to change.
+1. **Sketch on the frontend.** Draft the screens against mocked data. This is
+   the cheap place to find the rough data needs: no migrations, no models. The
+   sketch is throwaway; it is allowed to be wrong.
+2. **Build the real thing on the backend.** Django models and migrations, then
+   Django Ninja schemas and endpoints with their tests. Follow Ninja's
+   conventions (see "API conventions").
+3. **Export the contract.** `make api-export` writes Ninja's OpenAPI schema to
+   `api/openapi.json` (committed; a backend test fails if it is stale).
+4. **Regenerate the client.** `make fe-api-generate` (or `make api-generate`
+   for steps 3 and 4 together) runs Orval over `api/openapi.json` into
+   `frontend/src/api/generated/` (committed, never hand-edited).
+5. **Make the frontend conform.** Typecheck errors in the mocks, seed data, UI
+   and tests show exactly where the sketch drifted from the real shape. Fix them
+   until `make fe-check` passes; the mocks now follow the generated types.
+6. **Switch off the mock** (`VITE_API_MOCKING=false`) and verify against the real
+   backend. No app code should need to change.
 
 ### Contract ownership
 
-- While a feature is being designed, `api/openapi.yaml` is the source of truth.
-- Once the backend implements it, Django Ninja's generated schema must match
-  `api/openapi.yaml` (paths, status codes, request and response shapes). A
-  mismatch is a bug in whichever side drifted; resolve it in the YAML first.
+- The backend owns the contract. `api/openapi.json` is generated from Django
+  Ninja; never hand-edit it, and never keep a hand-written copy of it.
+- If the frontend needs a different shape, change the Ninja schema and
+  re-export. Do not bend the frontend away from what the spec says.
+
+## API conventions
+
+- Errors use Ninja's bodies: `404` is `{"detail": "Not Found"}` and `422` is
+  `{"detail": [{"type", "loc", "msg", "ctx?"}]}`. Both are declared in the spec
+  (`ErrorResponse`, `ValidationErrorResponse`). The frontend's `ApiError` reads `detail`.
+- Schemas are named `<Thing>Create` / `<Thing>Update` / `<Thing>Response` (project
+  convention, not enforced by Ninja); the names become the generated TypeScript types.
+- Operation IDs are set explicitly (`listLists`, `createTodo`, ...) because they
+  become the generated hook names. Do not rely on Ninja's default IDs.
+- Responses expose read-only `created_at` and `updated_at` (ISO 8601 strings).
+- Collections are plain arrays until pagination is needed (then use Ninja's
+  `@paginate`, which wraps results in `{items, count}`).
+- Partial updates are `PATCH` with optional fields; apply them with `save()` (not
+  `.update()`) so `updated_at` is bumped.
+- Text input is stripped and validated at the API boundary (`min_length=1`, and a
+  `max_length` equal to the column size); the database has a not-blank check as a
+  backstop.
 
 ## Frontend layout (API related)
 
 | Path | Purpose |
 | --- | --- |
-| `api/openapi.yaml` | The contract |
+| `api/openapi.json` | The contract, exported from Django Ninja (`make api-export`) |
 | `frontend/orval.config.ts` | Orval config (react-query, fetch client, no faker mocks) |
 | `frontend/src/api/fetcher.ts` | `customFetch` used by generated code; throws `ApiError` on non-2xx |
 | `frontend/src/api/generated/` | Generated client, hooks and models. Do not edit |
 | `frontend/src/mocks/db.ts` | Typed seed data and in-memory store |
-| `frontend/src/mocks/handlers.ts` | One MSW handler per operation |
+| `frontend/src/mocks/handlers.ts` | One MSW handler per operation, returning Ninja-shaped responses |
 | `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest) |
 | `frontend/src/mocks/enable.ts` | Starts the worker; on in dev by default |
 | `frontend/src/client.tsx` | Client entry; awaits the worker before hydrating |
 | `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient` |
+| `frontend/src/test/factories.ts` | `todo()` / `todoList()` typed fixtures for tests |
 
 Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 `VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds).
@@ -54,8 +74,9 @@ Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 - Seed data is typed with the generated models, so contract drift fails
   `make fe-typecheck`. Keep it realistic (real-looking names and text, not
   `foo`/`bar`).
-- Handlers are stateful over the in-memory store and validate input like the
-  real API (404 for unknown ids, 422 for bad bodies). Mocks reset on page reload.
+- Handlers are stateful over the in-memory store and mirror the backend: strip
+  and validate input, return Ninja's 404 and 422 bodies, and bump `updated_at`.
+  Mocks reset on page reload. When the backend rules change, update the mocks too.
 - Cover error and loading states in tests with per-test overrides
   (`server.use(http.get(...))`), not by editing the default handlers.
 - The Node MSW server fails on unhandled requests, so a missing handler fails a
@@ -78,7 +99,9 @@ Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 
 ## Commands (run from the repository root)
 
-- `make fe-api-generate`: regenerate the client from `api/openapi.yaml`
+- `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json`
+- `make fe-api-generate`: regenerate the frontend client from `api/openapi.json`
+- `make api-generate`: both of the above
 - `make fe-dev`: dev server (mocks on by default)
 - `make fe-check`: lint, format check, typecheck and tests
 - `make fe-format`: format after generating or adding shadcn components
@@ -89,7 +112,10 @@ Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 - Frontend unit tests live in `__tests__/` inside each feature directory and use
   vitest, Testing Library, user-event and MSW. Use `renderWithClient` for
   anything that uses React Query.
-- Tests start from an empty mock database. Seed one with `db.reset([...])`.
+- Tests start from an empty mock database. Seed one with
+  `db.reset([todoList({...})])` using the factories in `src/test/factories.ts`.
+- Backend tests that touch the API use the Django test client against `/api/...`
+  and cover our own behavior (validation, 404s, query counts), not Django's.
 
 ## Dependencies
 

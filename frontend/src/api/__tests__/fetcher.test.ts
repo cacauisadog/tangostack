@@ -45,13 +45,38 @@ test("sends a JSON content type only when there is a body", async () => {
   expect(seen[1]).toBe("application/json");
 });
 
-test("throws ApiError with the API's message on a JSON error response", async () => {
-  server.use(http.get("*/api/ping", () => HttpResponse.json({ message: "nope" }, { status: 422 })));
+test("throws ApiError with Ninja's string detail as the message", async () => {
+  server.use(
+    http.get("*/api/ping", () => HttpResponse.json({ detail: "Not Found" }, { status: 404 })),
+  );
 
   const error = await customFetch("/api/ping").catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(ApiError);
-  expect(error).toMatchObject({ status: 422, message: "nope", body: { message: "nope" } });
+  expect(error).toMatchObject({ status: 404, message: "Not Found", body: { detail: "Not Found" } });
+});
+
+test("turns Ninja's validation error list into a readable message", async () => {
+  const detail = [
+    { type: "string_too_short", loc: ["body", "payload", "name"], msg: "Too short" },
+    { type: "missing", loc: ["body", "payload", "text"], msg: "Field required" },
+    { type: "uuid_parsing", loc: ["path", "todo_id"], msg: "Invalid UUID" },
+  ];
+  server.use(http.get("*/api/ping", () => HttpResponse.json({ detail }, { status: 422 })));
+
+  const error = await customFetch("/api/ping").catch((e: unknown) => e);
+
+  expect((error as ApiError).message).toBe(
+    "name: Too short; text: Field required; path.todo_id: Invalid UUID",
+  );
+});
+
+test("falls back to a generic message when the error body has no detail", async () => {
+  server.use(http.get("*/api/ping", () => HttpResponse.json({ oops: true }, { status: 500 })));
+
+  const error = await customFetch("/api/ping").catch((e: unknown) => e);
+
+  expect((error as ApiError).message).toBe("Request failed with status 500");
 });
 
 test("throws a clear ApiError when the server answers with HTML (e.g. the mock worker is bypassed)", async () => {

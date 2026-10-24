@@ -2,7 +2,7 @@ import { defineConfig } from "orval";
 
 export default defineConfig({
   tangostack: {
-    input: "../api/openapi.yaml",
+    input: "../api/openapi.json",
     output: {
       workspace: "src/api/generated",
       target: "endpoints.ts",
