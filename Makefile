@@ -6,7 +6,7 @@ FE = cd frontend && pnpm
 .PHONY: help db-up db-down run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser check test test-fresh lint format \
 	fe-install fe-dev fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
-	fe-typecheck fe-check
+	fe-typecheck fe-check fe-api-generate
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -84,5 +84,8 @@ fe-format-check: ## Fail if the frontend is not formatted
 
 fe-typecheck: ## Type-check the frontend
 	$(FE) typecheck
+
+fe-api-generate: ## Regenerate the API client from api/openapi.yaml
+	$(FE) api:generate
 
 fe-check: fe-lint fe-format-check fe-typecheck fe-test ## Run all frontend checks

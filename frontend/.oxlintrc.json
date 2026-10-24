@@ -9,7 +9,7 @@
     "browser": true,
     "es2022": true
   },
-  "ignorePatterns": ["src/routeTree.gen.ts"],
+  "ignorePatterns": ["src/routeTree.gen.ts", "src/api/generated"],
   "rules": {
     "react/react-in-jsx-scope": "off",
     "jsx-a11y/no-autofocus": "off",

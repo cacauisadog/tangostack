@@ -1,0 +1,95 @@
+# Tangostack Agent Instructions
+
+Repository-wide rules. `backend/AGENTS.md` adds backend-specific rules; where
+the two conflict on **how a new API is designed**, this file wins (see
+"Contract ownership" below).
+
+## Feature workflow: frontend first, mock first
+
+Use this for every new frontend or full-stack feature. Do not start with the
+backend.
+
+1. **Contract first.** Define or change the endpoints and data shapes in
+   `api/openapi.yaml`. This is cheap to change: no migrations, no models.
+2. **Generate.** Run `make fe-api-generate` to regenerate the typed client and
+   React Query hooks in `frontend/src/api/generated/` (committed, never
+   hand-edited).
+3. **Mock data first.** Add typed seed data and handlers in
+   `frontend/src/mocks/`. Mock the API at the HTTP layer with MSW so the real
+   client code runs in dev, tests and the browser.
+4. **Build the UI against the mock** until the shape and the behavior feel right.
+   Iterate on the contract and mocks freely during this phase.
+5. **Only then build the backend:** Django models, migrations and the Ninja
+   endpoints, implementing the agreed contract.
+6. **Switch off the mock** (`VITE_API_MOCKING=false`) and verify against the
+   real backend. No app code should need to change.
+
+### Contract ownership
+
+- While a feature is being designed, `api/openapi.yaml` is the source of truth.
+- Once the backend implements it, Django Ninja's generated schema must match
+  `api/openapi.yaml` (paths, status codes, request and response shapes). A
+  mismatch is a bug in whichever side drifted; resolve it in the YAML first.
+
+## Frontend layout (API related)
+
+| Path | Purpose |
+| --- | --- |
+| `api/openapi.yaml` | The contract |
+| `frontend/orval.config.ts` | Orval config (react-query, fetch client, no faker mocks) |
+| `frontend/src/api/fetcher.ts` | `customFetch` used by generated code; throws `ApiError` on non-2xx |
+| `frontend/src/api/generated/` | Generated client, hooks and models. Do not edit |
+| `frontend/src/mocks/db.ts` | Typed seed data and in-memory store |
+| `frontend/src/mocks/handlers.ts` | One MSW handler per operation |
+| `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest) |
+| `frontend/src/mocks/enable.ts` | Starts the worker; on in dev by default |
+| `frontend/src/client.tsx` | Client entry; awaits the worker before hydrating |
+| `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient` |
+
+Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
+`VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds).
+
+## Mock conventions
+
+- Seed data is typed with the generated models, so contract drift fails
+  `make fe-typecheck`. Keep it realistic (real-looking names and text, not
+  `foo`/`bar`).
+- Handlers are stateful over the in-memory store and validate input like the
+  real API (404 for unknown ids, 422 for bad bodies). Mocks reset on page reload.
+- Cover error and loading states in tests with per-test overrides
+  (`server.use(http.get(...))`), not by editing the default handlers.
+- The Node MSW server fails on unhandled requests, so a missing handler fails a
+  test instead of silently hitting the network.
+- The app is client-rendered for data: fetch with the generated hooks in
+  components, not in route loaders. Server-side fetching would bypass the
+  browser worker and needs separate MSW-in-Node wiring first.
+
+## Commands (run from the repository root)
+
+- `make fe-api-generate`: regenerate the client from `api/openapi.yaml`
+- `make fe-dev`: dev server (mocks on by default)
+- `make fe-check`: lint, format check, typecheck and tests
+- `make fe-format`: format after generating or adding shadcn components
+- `make help`: everything else
+
+## Testing
+
+- Frontend unit tests live in `__tests__/` inside each feature directory and use
+  vitest, Testing Library, user-event and MSW. Use `renderWithClient` for
+  anything that uses React Query.
+- Tests start from an empty mock database. Seed one with `db.reset([...])`.
+
+## Dependencies
+
+Do not install, remove or upgrade packages without asking the project owner
+first. Frontend dependencies are pinned to exact versions.
+
+## Gotchas
+
+- After `shadcn add` or `shadcn init`, check the components: the CLI has
+  generated `import { cn } from "cn"` (a wrong npm package) instead of
+  `#/lib/utils`, and may overwrite `src/lib/utils.ts`. Fix the imports and
+  remove any `cn` dependency it added.
+- MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`.
+- Formatting is oxfmt (double quotes, semicolons) and linting is oxlint.
+  `src/api/generated/` and `routeTree.gen.ts` are excluded from both.

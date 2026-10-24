@@ -1,42 +1,56 @@
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getListListsQueryKey,
+  useCreateList,
+  useCreateTodo,
+  useListLists,
+  useUpdateTodo,
+} from "#/api/generated";
+import type { listListsResponse } from "#/api/generated";
 import InlineForm from "./InlineForm";
 import TodoListCard from "./TodoListCard";
-import type { TodoList } from "./types";
 
 export default function TodoApp() {
-  const [lists, setLists] = useState<TodoList[]>([]);
+  const queryClient = useQueryClient();
+  const listsKey = getListListsQueryKey();
+  const invalidateLists = () => queryClient.invalidateQueries({ queryKey: listsKey });
 
-  function addList(name: string) {
-    setLists((prev) => [...prev, { id: crypto.randomUUID(), name, todos: [] }]);
-  }
+  const {
+    data: lists,
+    isPending,
+    isError,
+  } = useListLists({ query: { select: (res) => res.data } });
 
-  function addTodo(listId: string, text: string) {
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              todos: [...list.todos, { id: crypto.randomUUID(), text, done: false }],
-            }
-          : list,
-      ),
-    );
-  }
+  const createList = useCreateList({ mutation: { onSuccess: invalidateLists } });
+  const createTodo = useCreateTodo({ mutation: { onSuccess: invalidateLists } });
 
-  function toggleTodo(listId: string, todoId: string) {
-    setLists((prev) =>
-      prev.map((list) =>
-        list.id === listId
-          ? {
-              ...list,
-              todos: list.todos.map((todo) =>
-                todo.id === todoId ? { ...todo, done: !todo.done } : todo,
-              ),
-            }
-          : list,
-      ),
-    );
-  }
+  // Toggling is optimistic: patch the cache now, roll back if the request fails.
+  const updateTodo = useUpdateTodo({
+    mutation: {
+      onMutate: async ({ todoId, data }) => {
+        await queryClient.cancelQueries({ queryKey: listsKey });
+        const previous = queryClient.getQueryData<listListsResponse>(listsKey);
+        queryClient.setQueryData<listListsResponse>(
+          listsKey,
+          (old) =>
+            old && {
+              ...old,
+              data: old.data.map((list) => ({
+                ...list,
+                todos: list.todos.map((todo) => (todo.id === todoId ? { ...todo, ...data } : todo)),
+              })),
+            },
+        );
+        return { previous };
+      },
+      onError: (_error, _vars, context) => {
+        queryClient.setQueryData(listsKey, context?.previous);
+      },
+      onSettled: invalidateLists,
+    },
+  });
+
+  const mutationError = createList.error ?? createTodo.error ?? updateTodo.error;
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,11 +60,23 @@ export default function TodoApp() {
           triggerLabel="New list"
           placeholder="List name"
           submitLabel="Create"
-          onSubmit={addList}
+          onSubmit={(name) => createList.mutate({ data: { name } })}
         />
       </div>
 
-      {lists.length === 0 ? (
+      {mutationError && (
+        <p role="alert" className="text-destructive">
+          {mutationError.message}
+        </p>
+      )}
+
+      {isPending ? (
+        <p className="text-muted-foreground">Loading lists…</p>
+      ) : isError ? (
+        <p role="alert" className="text-destructive">
+          Couldn't load your lists. Try again in a moment.
+        </p>
+      ) : lists.length === 0 ? (
         <p className="text-muted-foreground">No lists yet. Create one to get started.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -58,8 +84,11 @@ export default function TodoApp() {
             <TodoListCard
               key={list.id}
               list={list}
-              onAddTodo={(text) => addTodo(list.id, text)}
-              onToggleTodo={(todoId) => toggleTodo(list.id, todoId)}
+              onAddTodo={(text) => createTodo.mutate({ listId: list.id, data: { text } })}
+              onToggleTodo={(todoId) => {
+                const todo = list.todos.find((t) => t.id === todoId);
+                if (todo) updateTodo.mutate({ todoId, data: { done: !todo.done } });
+              }}
             />
           ))}
         </div>
