@@ -123,6 +123,9 @@ for mocks; the domain works for both).
 - `make api-generate`: both of the above
 - `make fe-dev`: dev server (mocks on by default)
 - `make fe-dev-api`: dev server against the real backend (mocks off)
+- `make fe-e2e`: Playwright e2e against the real stack (needs `make db-up`)
+- `make fe-e2e-report`: open the last Playwright HTML report
+- `make coverage-report`: open the backend HTML coverage report (every `pytest` run writes it to `backend/htmlcov/`)
 - `make proxy-up` / `proxy-down` / `proxy-trust`: Caddy dev proxy
 - `make fe-check`: lint, format check, typecheck and tests
 - `make fe-format`: format after generating or adding shadcn components
@@ -135,6 +138,21 @@ for mocks; the domain works for both).
   anything that uses React Query.
 - Tests start from an empty mock database. Seed one with
   `db.reset([todoList({...})])` using the factories in `src/test/factories.ts`.
+- E2E tests live in `frontend/e2e/` (Playwright, Chromium only). `make fe-e2e`
+  starts its own stack: Django on `:8001` with a dedicated `tangostack_e2e`
+  database (created and migrated on demand by `make e2e-backend`) and Vite on
+  `:3100` with mocks off. It never touches dev data or your `:3000`/`:8000`
+  servers. The only prerequisite is Postgres (`make db-up`).
+  - Tests run serially; `e2e/fixtures.ts` flushes the e2e database before every
+    test (`make e2e-flush`, e2e DB only). Import `test`/`expect` from there.
+  - Seed data through the API (`request.post`), not the database, so the
+    generated types and the real contract are exercised. Cover whole flows;
+    keep rule-level checks in backend and vitest tests.
+  - Vite proxies `/api` itself during e2e (`API_PROXY_TARGET`, a plugin in
+    `vite.config.ts`) because Caddy isn't in this stack. Vite's `server.proxy`
+    and Nitro's `devProxy` don't work: TanStack Start answers `/api/*` first.
+  - Use `click()` + `expect(...).toBeChecked()` on checkboxes: `.check()` reads
+    the state synchronously and fails on Base UI's async-updating checkbox.
 - Backend tests that touch the API use the Django test client against `/api/...`
   and cover our own behavior (validation, 404s, query counts), not Django's.
 

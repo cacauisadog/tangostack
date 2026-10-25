@@ -4,8 +4,8 @@ FE = cd frontend && pnpm
 .DEFAULT_GOAL := help
 
 .PHONY: help db-up db-down proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
-	startapp shell dbshell superuser check test test-fresh lint format \
-	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
+	startapp shell dbshell superuser check test test-fresh coverage-report lint format \
+	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
 
 help: ## Show this help
@@ -61,6 +61,9 @@ test: ## Run backend tests (optional: args="-k name")
 test-fresh: ## Run backend tests with a recreated test DB
 	cd backend && uv run pytest --create-db $(args)
 
+coverage-report: ## Open the backend HTML coverage report (written by every pytest run)
+	open backend/htmlcov/index.html
+
 lint: ## Lint the backend with Ruff (optional: args="--fix --unsafe-fixes")
 	cd backend && uv run ruff check . $(args)
 
@@ -82,8 +85,23 @@ fe-build: ## Build the frontend
 fe-test: ## Run frontend unit tests
 	$(FE) test
 
-fe-e2e: ## Run frontend Playwright tests
+fe-e2e: ## Run Playwright e2e tests (needs `make db-up`; starts its own servers)
 	$(FE) e2e
+
+fe-e2e-report: ## Open the last Playwright HTML report
+	$(FE) e2e:report
+
+# e2e runs against its own database and ports so it never touches dev data.
+E2E_DB = tangostack_e2e
+E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1
+
+e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001
+	@docker compose exec -T postgres sh -c "psql -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$(E2E_DB)'\" | grep -q 1 || createdb -U postgres $(E2E_DB)"
+	cd backend && $(E2E_ENV) uv run python manage.py migrate --noinput
+	cd backend && $(E2E_ENV) uv run python manage.py runserver 8001 --noreload
+
+e2e-flush: ## Empty the e2e database (never the dev one)
+	cd backend && $(E2E_ENV) uv run python manage.py flush --noinput
 
 fe-lint: ## Lint the frontend with Oxlint (optional: args="--fix")
 	$(FE) lint $(args)

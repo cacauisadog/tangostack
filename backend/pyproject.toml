@@ -52,4 +52,4 @@ extend-select = [
 testpaths = ["tangostack"]
 DJANGO_SETTINGS_MODULE = "tangostack.settings"
 python_files = ["tests.py", "test_*.py"]
-addopts = "--reuse-db --durations=1"
+addopts = "--reuse-db --durations=1 --cov=tangostack --cov-report=term-missing:skip-covered --cov-report=html"

@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "e2e:report": "playwright show-report",
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
