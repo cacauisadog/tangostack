@@ -52,19 +52,19 @@ API**, and the frontend then conforms to it.
 
 ## Frontend layout (API related)
 
-| Path | Purpose |
-| --- | --- |
-| `api/openapi.json` | The contract, exported from Django Ninja (`make api-export`) |
-| `frontend/orval.config.ts` | Orval config (react-query, fetch client, no faker mocks) |
-| `frontend/src/api/fetcher.ts` | `customFetch` used by generated code; throws `ApiError` on non-2xx |
-| `frontend/src/api/generated/` | Generated client, hooks and models. Do not edit |
-| `frontend/src/mocks/db.ts` | Typed seed data and in-memory store |
-| `frontend/src/mocks/handlers.ts` | One MSW handler per operation, returning Ninja-shaped responses |
-| `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest) |
-| `frontend/src/mocks/enable.ts` | Starts the worker; on in dev by default |
-| `frontend/src/client.tsx` | Client entry; awaits the worker before hydrating |
-| `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient` |
-| `frontend/src/test/factories.ts` | `todo()` / `todoList()` typed fixtures for tests |
+| Path                                     | Purpose                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| `api/openapi.json`                       | The contract, exported from Django Ninja (`make api-export`)       |
+| `frontend/orval.config.ts`               | Orval config (react-query, fetch client, no faker mocks)           |
+| `frontend/src/api/fetcher.ts`            | `customFetch` used by generated code; throws `ApiError` on non-2xx |
+| `frontend/src/api/generated/`            | Generated client, hooks and models. Do not edit                    |
+| `frontend/src/mocks/db.ts`               | Typed seed data and in-memory store                                |
+| `frontend/src/mocks/handlers.ts`         | One MSW handler per operation, returning Ninja-shaped responses    |
+| `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest)                      |
+| `frontend/src/mocks/enable.ts`           | Starts the worker; on in dev by default                            |
+| `frontend/src/client.tsx`                | Client entry; awaits the worker before hydrating                   |
+| `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient`                               |
+| `frontend/src/test/factories.ts`         | `todo()` / `todoList()` typed fixtures for tests                   |
 
 Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 `VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds).

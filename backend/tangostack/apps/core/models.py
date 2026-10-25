@@ -6,7 +6,7 @@ from django.db.models import Q
 
 
 class TodoList(models.Model):
-    """A named to-do list. Mirrors `TodoList` in `api/openapi.yaml`."""
+    """A named to-do list."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -27,7 +27,7 @@ class TodoList(models.Model):
 
 
 class Todo(models.Model):
-    """A single task in a list. Mirrors `Todo` in `api/openapi.yaml`."""
+    """A single task in a list."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     todo_list = models.ForeignKey(
