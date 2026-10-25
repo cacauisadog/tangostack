@@ -10,3 +10,17 @@ services:
       - "5432:5432"
     volumes:
       - ./dkdata/postgres:/var/lib/postgresql
+
+  caddy:
+    image: caddy:2.11.7
+    container_name: tangostack__caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./dkdata/caddy/data:/data
+      - ./dkdata/caddy/config:/config

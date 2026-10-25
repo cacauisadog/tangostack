@@ -3,9 +3,9 @@ FE = cd frontend && pnpm
 
 .DEFAULT_GOAL := help
 
-.PHONY: help db-up db-down run migrate makemigrations check-migrations \
+.PHONY: help db-up db-down proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser check test test-fresh lint format \
-	fe-install fe-dev fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
+	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
 
 help: ## Show this help
@@ -17,6 +17,15 @@ db-up: ## Start PostgreSQL
 
 db-down: ## Stop PostgreSQL
 	docker compose down
+
+proxy-up: ## Start the Caddy dev proxy (https://dev.tangostack.com)
+	docker compose up -d caddy
+
+proxy-down: ## Stop the Caddy dev proxy
+	docker compose stop caddy
+
+proxy-trust: ## Trust Caddy's local CA in the macOS keychain (asks for sudo)
+	sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain dkdata/caddy/data/caddy/pki/authorities/local/root.crt
 
 run: ## Run the dev server
 	$(MANAGE) runserver
@@ -61,8 +70,11 @@ format: ## Format the backend with Ruff
 fe-install: ## Install frontend dependencies
 	$(FE) install
 
-fe-dev: ## Run the frontend dev server
+fe-dev: ## Run the frontend dev server (mocked API)
 	$(FE) dev
+
+fe-dev-api: ## Run the frontend dev server against the real backend (no mocks)
+	cd frontend && VITE_API_MOCKING=false pnpm dev
 
 fe-build: ## Build the frontend
 	$(FE) build

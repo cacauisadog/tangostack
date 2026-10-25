@@ -97,12 +97,33 @@ Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
   components, not in route loaders. Server-side fetching would bypass the
   browser worker and needs separate MSW-in-Node wiring first.
 
+## Local dev stack (real backend over HTTPS)
+
+Caddy (docker compose, `caddy/Caddyfile.dev`) serves `https://dev.tangostack.com`
+and proxies `/api`, `/admin`, `/static` to Django (host `:8000`) and everything
+else to Vite (host `:3000`). One origin, so no CORS.
+
+One-time setup: add `127.0.0.1 dev.tangostack.com` to `/etc/hosts`; copy
+`backend/.env.example` to `backend/.env`; `make proxy-up`, then
+`make proxy-trust` (trusts Caddy's local CA; asks for sudo).
+
+Daily: `make db-up proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
+for mocks; the domain works for both).
+
+- Vite allows the host and sends HMR over `wss` on 443 (`vite.config.ts`).
+- Django reads `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `BEHIND_PROXY`, `SECRET_KEY`,
+  `DEBUG` from env (`backend/.env`, git-ignored).
+- The production proxy will be Coolify's Traefik or Dokku's nginx (TBD), so this
+  setup mirrors routing, not the platform's proxy config.
+
 ## Commands (run from the repository root)
 
 - `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json`
 - `make fe-api-generate`: regenerate the frontend client from `api/openapi.json`
 - `make api-generate`: both of the above
 - `make fe-dev`: dev server (mocks on by default)
+- `make fe-dev-api`: dev server against the real backend (mocks off)
+- `make proxy-up` / `proxy-down` / `proxy-trust`: Caddy dev proxy
 - `make fe-check`: lint, format check, typecheck and tests
 - `make fe-format`: format after generating or adding shadcn components
 - `make help`: everything else

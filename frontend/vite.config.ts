@@ -10,6 +10,11 @@ import { nitro } from "nitro/vite";
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  server: {
+    // served through Caddy at https://dev.tangostack.com (see caddy/Caddyfile.dev)
+    allowedHosts: ["dev.tangostack.com"],
+    hmr: { protocol: "wss", host: "dev.tangostack.com", clientPort: 443 },
+  },
   plugins: [
     devtools(),
     nitro({ rollupConfig: { external: [/^@sentry\//] } }),
