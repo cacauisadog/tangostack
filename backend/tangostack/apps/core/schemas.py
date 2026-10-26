@@ -3,7 +3,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from ninja import Schema
-from pydantic import StringConstraints
+from pydantic import Field, StringConstraints
 
 # Lengths mirror the column sizes in `models.py`. Whitespace is stripped before
 # validation, so blank (whitespace-only) values fail `min_length`.
@@ -39,10 +39,16 @@ class TodoCreate(Schema):
     text: TodoText
 
 
-class TodoUpdate(Schema):
-    """Partial update: only the fields that are sent are changed."""
+# Partial updates: omitted fields are left alone. The `None` defaults are not
+# `Optional`s, so an explicit `null` is rejected (422) instead of reaching the
+# NOT NULL columns, and the spec shows plain optional (non-nullable) fields.
+class TodoListUpdate(Schema):
+    name: ListName = Field(default=None)
 
-    done: bool | None = None
+
+class TodoUpdate(Schema):
+    text: TodoText = Field(default=None)
+    done: bool = Field(default=None)
 
 
 class ErrorResponse(Schema):

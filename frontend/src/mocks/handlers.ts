@@ -4,6 +4,7 @@ import type {
   TodoCreate,
   TodoListCreate,
   TodoListResponse,
+  TodoListUpdate,
   TodoResponse,
   TodoUpdate,
   ValidationErrorItem,
@@ -78,18 +79,65 @@ export const handlers = [
     },
   ),
 
+  http.patch<{ listId: string }, TodoListUpdate>(
+    "*/api/lists/:listId",
+    async ({ params, request }) => {
+      await delay();
+      const body = await request.json();
+      // Omitted fields are left alone; an explicit `null` is rejected like in the backend.
+      const name = "name" in body ? requiredString("name", body.name, MAX_NAME_LENGTH) : undefined;
+      if (name?.issue) return unprocessable(name.issue);
+      const list = db.findList(params.listId);
+      if (!list) return notFound();
+      return HttpResponse.json<TodoListResponse>(
+        db.updateList(list, name ? { name: name.value } : {}),
+      );
+    },
+  ),
+
+  http.delete<{ listId: string }>("*/api/lists/:listId", async ({ params }) => {
+    await delay();
+    const list = db.findList(params.listId);
+    if (!list) return notFound();
+    db.deleteList(list);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.patch<{ todoId: string }, TodoUpdate>("*/api/todos/:todoId", async ({ params, request }) => {
     await delay();
-    const { done } = await request.json();
-    if (done != null && typeof done !== "boolean") {
-      return unprocessable({
-        type: "bool_parsing",
-        loc: ["body", "payload", "done"],
-        msg: "Input should be a valid boolean, unable to interpret input",
-      });
+    const body = await request.json();
+    const text = "text" in body ? requiredString("text", body.text, MAX_TEXT_LENGTH) : undefined;
+    if (text?.issue) return unprocessable(text.issue);
+    if ("done" in body && typeof body.done !== "boolean") {
+      return unprocessable(
+        body.done === null
+          ? {
+              type: "bool_type",
+              loc: ["body", "payload", "done"],
+              msg: "Input should be a valid boolean",
+            }
+          : {
+              type: "bool_parsing",
+              loc: ["body", "payload", "done"],
+              msg: "Input should be a valid boolean, unable to interpret input",
+            },
+      );
     }
     const todo = db.findTodo(params.todoId);
     if (!todo) return notFound();
-    return HttpResponse.json<TodoResponse>(db.updateTodo(todo, done == null ? {} : { done }));
+    return HttpResponse.json<TodoResponse>(
+      db.updateTodo(todo, {
+        ...(text && { text: text.value }),
+        ...("done" in body && { done: body.done }),
+      }),
+    );
+  }),
+
+  http.delete<{ todoId: string }>("*/api/todos/:todoId", async ({ params }) => {
+    await delay();
+    const todo = db.findTodo(params.todoId);
+    if (!todo) return notFound();
+    db.deleteTodo(todo);
+    return new HttpResponse(null, { status: 204 });
   }),
 ];

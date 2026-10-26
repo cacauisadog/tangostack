@@ -143,6 +143,98 @@ export const useCreateTodo = <TError = ErrorType<ErrorResponse | ValidationError
       > => {
       return useMutation(getCreateTodoMutationOptions(options), queryClient);
     }
+    export type deleteTodoResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteTodoResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteTodoResponseSuccess = (deleteTodoResponse204) & {
+  headers: Headers;
+};
+export type deleteTodoResponseError = (deleteTodoResponse404) & {
+  headers: Headers;
+};
+
+export type deleteTodoResponse = (deleteTodoResponseSuccess | deleteTodoResponseError)
+
+export const getDeleteTodoUrl = (todoId: string,) => {
+
+
+
+
+  return `/api/todos/${todoId}`
+}
+
+/**
+ * @summary Delete a todo
+ */
+export const deleteTodo = async (todoId: string, options?: Parameters<typeof customFetch>[1]): Promise<deleteTodoResponse> => {
+
+  return customFetch<deleteTodoResponse>(getDeleteTodoUrl(todoId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTodoMutationKey = () => ['deleteTodo'] as const;
+
+export const getDeleteTodoMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTodo>>, TError,DeleteTodoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTodo>>, TError,DeleteTodoMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTodoMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTodo>>, DeleteTodoMutationVariables> = (props) => {
+          const {todoId} = props ?? {};
+
+          return  deleteTodo(todoId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTodoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTodo>>>
+
+    export type DeleteTodoMutationError = ErrorType<ErrorResponse>
+    export type DeleteTodoMutationVariables = {todoId: string}
+
+    /**
+ * @summary Delete a todo
+ */
+export const useDeleteTodo = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTodo>>, TError,DeleteTodoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTodo>>,
+        TError,
+        DeleteTodoMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTodoMutationOptions(options), queryClient);
+    }
     export type updateTodoResponse200 = {
   data: TodoResponse
   status: 200
@@ -176,7 +268,7 @@ export const getUpdateTodoUrl = (todoId: string,) => {
 }
 
 /**
- * @summary Update a todo (mark done or undone)
+ * @summary Update a todo (edit its text, mark it done or undone)
  */
 export const updateTodo = async (todoId: string,
     todoUpdate: TodoUpdate, options?: Parameters<typeof customFetch>[1]): Promise<updateTodoResponse> => {
@@ -243,7 +335,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateTodoMutationVariables = {todoId: string;data: TodoUpdate}
 
     /**
- * @summary Update a todo (mark done or undone)
+ * @summary Update a todo (edit its text, mark it done or undone)
  */
 export const useUpdateTodo = <TError = ErrorType<ErrorResponse | ValidationErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTodo>>, TError,UpdateTodoMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -234,3 +234,145 @@ class TestUpdateTodo:
             "payload",
             "done",
         )
+
+    @pytest.mark.parametrize("text", ["", "   ", "\t\n"])
+    def test_rejects_blank_text(self, client, text):
+        todo = Todo.objects.create(
+            todo_list=TodoList.objects.create(name="Work"), text="Ship it"
+        )
+
+        assert_validation_error(
+            patch(client, f"/api/todos/{todo.id}", {"text": text}),
+            "body",
+            "payload",
+            "text",
+        )
+
+    def test_rejects_text_longer_than_the_column(self, client):
+        todo = Todo.objects.create(
+            todo_list=TodoList.objects.create(name="Work"), text="Ship it"
+        )
+
+        assert_validation_error(
+            patch(client, f"/api/todos/{todo.id}", {"text": "x" * 501}),
+            "body",
+            "payload",
+            "text",
+        )
+
+    @pytest.mark.parametrize("field", ["text", "done"])
+    def test_rejects_an_explicit_null(self, client, field):
+        todo = Todo.objects.create(
+            todo_list=TodoList.objects.create(name="Work"), text="Ship it"
+        )
+
+        assert_validation_error(
+            patch(client, f"/api/todos/{todo.id}", {field: None}),
+            "body",
+            "payload",
+            field,
+        )
+
+    def test_edits_the_text_and_leaves_done_alone(self, client):
+        todo = Todo.objects.create(
+            todo_list=TodoList.objects.create(name="Work"), text="Ship it", done=True
+        )
+
+        response = patch(client, f"/api/todos/{todo.id}", {"text": "  Ship it today "})
+
+        assert response.status_code == 200
+        assert response.json()["text"] == "Ship it today"
+        todo.refresh_from_db()
+        assert (todo.text, todo.done) == ("Ship it today", True)
+
+
+class TestDeleteTodo:
+    def test_deletes_only_the_given_todo(self, client):
+        todo_list = TodoList.objects.create(name="Work")
+        target = Todo.objects.create(todo_list=todo_list, text="same")
+        other = Todo.objects.create(todo_list=todo_list, text="same")
+
+        response = client.delete(f"/api/todos/{target.id}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+        assert list(Todo.objects.all()) == [other]
+
+    def test_returns_404_for_an_unknown_todo(self, client):
+        response = client.delete(f"/api/todos/{UNKNOWN_ID}")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+
+
+class TestUpdateList:
+    def test_renames_the_list(self, client):
+        todo_list = TodoList.objects.create(name="Work")
+        Todo.objects.create(todo_list=todo_list, text="Ship it")
+
+        response = patch(client, f"/api/lists/{todo_list.id}", {"name": "  Office "})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["name"] == "Office"
+        assert [todo["text"] for todo in body["todos"]] == ["Ship it"]
+        todo_list.refresh_from_db()
+        assert todo_list.name == "Office"
+
+    def test_bumps_updated_at(self, client):
+        todo_list = TodoList.objects.create(name="Work")
+        long_ago = datetime(2020, 1, 1, tzinfo=UTC)
+        TodoList.objects.filter(id=todo_list.id).update(updated_at=long_ago)
+
+        patch(client, f"/api/lists/{todo_list.id}", {"name": "Office"})
+
+        todo_list.refresh_from_db()
+        assert todo_list.updated_at > long_ago
+
+    @pytest.mark.parametrize("name", ["", "   ", "\t\n", None])
+    def test_rejects_a_blank_or_null_name(self, client, name):
+        todo_list = TodoList.objects.create(name="Work")
+
+        assert_validation_error(
+            patch(client, f"/api/lists/{todo_list.id}", {"name": name}),
+            "body",
+            "payload",
+            "name",
+        )
+
+    def test_rejects_a_name_longer_than_the_column(self, client):
+        todo_list = TodoList.objects.create(name="Work")
+
+        assert_validation_error(
+            patch(client, f"/api/lists/{todo_list.id}", {"name": "x" * 256}),
+            "body",
+            "payload",
+            "name",
+        )
+
+    def test_returns_404_for_an_unknown_list(self, client):
+        response = patch(client, f"/api/lists/{UNKNOWN_ID}", {"name": "Office"})
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
+
+
+class TestDeleteList:
+    def test_deletes_the_list_with_its_todos_and_nothing_else(self, client):
+        doomed = TodoList.objects.create(name="Work")
+        Todo.objects.create(todo_list=doomed, text="Ship it")
+        kept = TodoList.objects.create(name="Home")
+        Todo.objects.create(todo_list=kept, text="Do laundry")
+
+        response = client.delete(f"/api/lists/{doomed.id}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+        assert list(TodoList.objects.all()) == [kept]
+        assert list(Todo.objects.values_list("text", flat=True)) == ["Do laundry"]
+
+    def test_returns_404_for_an_unknown_list(self, client):
+        response = client.delete(f"/api/lists/{UNKNOWN_ID}")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}

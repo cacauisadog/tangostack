@@ -9,12 +9,20 @@ from .schemas import (
     TodoCreate,
     TodoListCreate,
     TodoListResponse,
+    TodoListUpdate,
     TodoResponse,
     TodoUpdate,
     ValidationErrorResponse,
 )
 
 router = Router()
+
+
+def apply_patch(instance, payload):
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(instance, field, value)
+    instance.save()  # not .update(): `updated_at` (auto_now) is only set by save()
+    return instance
 
 
 @router.get(
@@ -52,15 +60,48 @@ def create_todo(request, list_id: UUID, payload: TodoCreate):
 
 
 @router.patch(
+    "/lists/{list_id}",
+    response={200: TodoListResponse, 404: ErrorResponse, 422: ValidationErrorResponse},
+    operation_id="updateList",
+    tags=["lists"],
+    summary="Update a to-do list (rename it)",
+)
+def update_list(request, list_id: UUID, payload: TodoListUpdate):
+    todo_list = get_object_or_404(TodoList, id=list_id)
+    return apply_patch(todo_list, payload)
+
+
+@router.delete(
+    "/lists/{list_id}",
+    response={204: None, 404: ErrorResponse},
+    operation_id="deleteList",
+    tags=["lists"],
+    summary="Delete a to-do list and its todos",
+)
+def delete_list(request, list_id: UUID):
+    get_object_or_404(TodoList, id=list_id).delete()
+    return Status(204, None)
+
+
+@router.patch(
     "/todos/{todo_id}",
     response={200: TodoResponse, 404: ErrorResponse, 422: ValidationErrorResponse},
     operation_id="updateTodo",
     tags=["todos"],
-    summary="Update a todo (mark done or undone)",
+    summary="Update a todo (edit its text, mark it done or undone)",
 )
 def update_todo(request, todo_id: UUID, payload: TodoUpdate):
     todo = get_object_or_404(Todo, id=todo_id)
-    for field, value in payload.dict(exclude_unset=True).items():
-        setattr(todo, field, value)
-    todo.save()  # not .update(): `updated_at` (auto_now) is only set by save()
-    return todo
+    return apply_patch(todo, payload)
+
+
+@router.delete(
+    "/todos/{todo_id}",
+    response={204: None, 404: ErrorResponse},
+    operation_id="deleteTodo",
+    tags=["todos"],
+    summary="Delete a todo",
+)
+def delete_todo(request, todo_id: UUID):
+    get_object_or_404(Todo, id=todo_id).delete()
+    return Status(204, None)

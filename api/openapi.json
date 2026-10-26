@@ -83,6 +83,18 @@
         "title": "TodoListResponse",
         "type": "object"
       },
+      "TodoListUpdate": {
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "title": "TodoListUpdate",
+        "type": "object"
+      },
       "TodoResponse": {
         "properties": {
           "created_at": {
@@ -120,18 +132,16 @@
         "type": "object"
       },
       "TodoUpdate": {
-        "description": "Partial update: only the fields that are sent are changed.",
         "properties": {
           "done": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Done"
+            "title": "Done",
+            "type": "boolean"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
           }
         },
         "title": "TodoUpdate",
@@ -274,6 +284,103 @@
         ]
       }
     },
+    "/api/lists/{list_id}": {
+      "delete": {
+        "operationId": "deleteList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "List Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete a to-do list and its todos",
+        "tags": [
+          "lists"
+        ]
+      },
+      "patch": {
+        "operationId": "updateList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "List Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TodoListUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Update a to-do list (rename it)",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
     "/api/lists/{list_id}/todos": {
       "post": {
         "operationId": "createTodo",
@@ -338,6 +445,40 @@
       }
     },
     "/api/todos/{todo_id}": {
+      "delete": {
+        "operationId": "deleteTodo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "todo_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Todo Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete a todo",
+        "tags": [
+          "todos"
+        ]
+      },
       "patch": {
         "operationId": "updateTodo",
         "parameters": [
@@ -394,7 +535,7 @@
             "description": "Unprocessable Content"
           }
         },
-        "summary": "Update a todo (mark done or undone)",
+        "summary": "Update a todo (edit its text, mark it done or undone)",
         "tags": [
           "todos"
         ]

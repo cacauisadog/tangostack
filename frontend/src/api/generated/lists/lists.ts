@@ -25,8 +25,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ErrorResponse,
   TodoListCreate,
   TodoListResponse,
+  TodoListUpdate,
   ValidationErrorResponse
 } from '../model';
 
@@ -270,4 +272,208 @@ export const useCreateList = <TError = ErrorType<ValidationErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateListMutationOptions(options), queryClient);
+    }
+    export type deleteListResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteListResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteListResponseSuccess = (deleteListResponse204) & {
+  headers: Headers;
+};
+export type deleteListResponseError = (deleteListResponse404) & {
+  headers: Headers;
+};
+
+export type deleteListResponse = (deleteListResponseSuccess | deleteListResponseError)
+
+export const getDeleteListUrl = (listId: string,) => {
+
+
+
+
+  return `/api/lists/${listId}`
+}
+
+/**
+ * @summary Delete a to-do list and its todos
+ */
+export const deleteList = async (listId: string, options?: Parameters<typeof customFetch>[1]): Promise<deleteListResponse> => {
+
+  return customFetch<deleteListResponse>(getDeleteListUrl(listId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteListMutationKey = () => ['deleteList'] as const;
+
+export const getDeleteListMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteList>>, TError,DeleteListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteList>>, TError,DeleteListMutationVariables, TContext> => {
+
+const mutationKey = getDeleteListMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteList>>, DeleteListMutationVariables> = (props) => {
+          const {listId} = props ?? {};
+
+          return  deleteList(listId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteListMutationResult = NonNullable<Awaited<ReturnType<typeof deleteList>>>
+
+    export type DeleteListMutationError = ErrorType<ErrorResponse>
+    export type DeleteListMutationVariables = {listId: string}
+
+    /**
+ * @summary Delete a to-do list and its todos
+ */
+export const useDeleteList = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteList>>, TError,DeleteListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteList>>,
+        TError,
+        DeleteListMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteListMutationOptions(options), queryClient);
+    }
+    export type updateListResponse200 = {
+  data: TodoListResponse
+  status: 200
+}
+
+export type updateListResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type updateListResponse422 = {
+  data: ValidationErrorResponse
+  status: 422
+}
+
+export type updateListResponseSuccess = (updateListResponse200) & {
+  headers: Headers;
+};
+export type updateListResponseError = (updateListResponse404 | updateListResponse422) & {
+  headers: Headers;
+};
+
+export type updateListResponse = (updateListResponseSuccess | updateListResponseError)
+
+export const getUpdateListUrl = (listId: string,) => {
+
+
+
+
+  return `/api/lists/${listId}`
+}
+
+/**
+ * @summary Update a to-do list (rename it)
+ */
+export const updateList = async (listId: string,
+    todoListUpdate: TodoListUpdate, options?: Parameters<typeof customFetch>[1]): Promise<updateListResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<updateListResponse>(getUpdateListUrl(listId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(todoListUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateListMutationKey = () => ['updateList'] as const;
+
+export const getUpdateListMutationOptions = <TError = ErrorType<ErrorResponse | ValidationErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateList>>, TError,UpdateListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateList>>, TError,UpdateListMutationVariables, TContext> => {
+
+const mutationKey = getUpdateListMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateList>>, UpdateListMutationVariables> = (props) => {
+          const {listId,data} = props ?? {};
+
+          return  updateList(listId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateListMutationResult = NonNullable<Awaited<ReturnType<typeof updateList>>>
+    export type UpdateListMutationBody = TodoListUpdate
+    export type UpdateListMutationError = ErrorType<ErrorResponse | ValidationErrorResponse>
+    export type UpdateListMutationVariables = {listId: string;data: TodoListUpdate}
+
+    /**
+ * @summary Update a to-do list (rename it)
+ */
+export const useUpdateList = <TError = ErrorType<ErrorResponse | ValidationErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateList>>, TError,UpdateListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateList>>,
+        TError,
+        UpdateListMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateListMutationOptions(options), queryClient);
     }

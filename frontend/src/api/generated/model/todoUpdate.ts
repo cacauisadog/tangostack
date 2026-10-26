@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * Partial update: only the fields that are sent are changed.
- */
 export interface TodoUpdate {
-  done?: boolean | null;
+  done?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  text?: string;
 }

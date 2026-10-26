@@ -189,3 +189,86 @@ test("shows the API's validation message when creating a list is rejected", asyn
   );
   expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument();
 });
+
+test("renames a list", async () => {
+  db.reset([todoList({ name: "Work", todos: [todo({ text: "ship it" })] })]);
+  const { user, getCard } = await setup();
+
+  await user.click(screen.getByRole("button", { name: 'Rename list "Work"' }));
+  const input = screen.getByRole("textbox", { name: 'Rename list "Work"' });
+  await user.clear(input);
+  await user.type(input, "Office{Enter}");
+
+  expect(await screen.findByText("Office", cardTitle)).toBeInTheDocument();
+  expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument();
+  expect(within(getCard("Office")).getByText("ship it")).toBeInTheDocument();
+  await waitFor(() => expect(db.getLists()[0].name).toBe("Office"));
+});
+
+test("edits a task's text and keeps its done state", async () => {
+  db.reset([todoList({ name: "Work", todos: [todo({ text: "ship it", done: true })] })]);
+  const { user } = await setup();
+
+  await user.click(screen.getByRole("button", { name: 'Edit task "ship it"' }));
+  const input = screen.getByRole("textbox", { name: 'Edit task "ship it"' });
+  await user.clear(input);
+  await user.type(input, "ship it today{Enter}");
+
+  expect(await screen.findByRole("checkbox", { name: "ship it today" })).toBeChecked();
+  await waitFor(() =>
+    expect(db.getLists()[0].todos[0]).toMatchObject({ text: "ship it today", done: true }),
+  );
+});
+
+test("deletes a task without touching the others", async () => {
+  db.reset([
+    todoList({ name: "Work", todos: [todo({ text: "ship it" }), todo({ text: "celebrate" })] }),
+  ]);
+  const { user } = await setup();
+
+  await user.click(screen.getByRole("button", { name: 'Delete task "ship it"' }));
+
+  await waitFor(() => expect(screen.queryByText("ship it")).not.toBeInTheDocument());
+  expect(screen.getByText("celebrate")).toBeInTheDocument();
+  await waitFor(() => expect(db.getLists()[0].todos.map((t) => t.text)).toEqual(["celebrate"]));
+});
+
+test("deleting a list asks for confirmation first", async () => {
+  db.reset([
+    todoList({ name: "Work", todos: [todo({ text: "ship it" }), todo({ text: "celebrate" })] }),
+    todoList({ name: "Home" }),
+  ]);
+  const { user, getCard } = await setup();
+
+  await user.click(screen.getByRole("button", { name: 'Delete list "Work"' }));
+  const dialog = await screen.findByRole("alertdialog");
+  expect(within(dialog).getByText(/also deletes its 2 tasks/i)).toBeInTheDocument();
+
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  expect(db.getLists()).toHaveLength(2);
+
+  await user.click(screen.getByRole("button", { name: 'Delete list "Work"' }));
+  await user.click(
+    within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
+  );
+
+  await waitFor(() => expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument());
+  expect(getCard("Home")).toBeInTheDocument();
+  await waitFor(() => expect(db.getLists().map((l) => l.name)).toEqual(["Home"]));
+});
+
+test("rolls back an optimistic delete when the request fails", async () => {
+  db.reset([todoList({ name: "Work", todos: [todo({ text: "ship it" })] })]);
+  const { user } = await setup();
+  server.use(
+    http.delete("*/api/todos/:todoId", () =>
+      HttpResponse.json({ detail: "nope" }, { status: 500 }),
+    ),
+  );
+
+  await user.click(screen.getByRole("button", { name: 'Delete task "ship it"' }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("nope");
+  expect(screen.getByText("ship it")).toBeInTheDocument();
+});

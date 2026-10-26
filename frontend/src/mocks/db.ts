@@ -111,8 +111,24 @@ export const db = {
     return todo;
   },
 
-  updateTodo(todo: TodoResponse, changes: Partial<Pick<TodoResponse, "done">>): TodoResponse {
+  updateList(list: TodoListResponse, changes: Partial<Pick<TodoListResponse, "name">>) {
+    Object.assign(list, changes, { updated_at: now() });
+    return list;
+  },
+
+  deleteList(list: TodoListResponse) {
+    lists = lists.filter((candidate) => candidate !== list);
+  },
+
+  updateTodo(
+    todo: TodoResponse,
+    changes: Partial<Pick<TodoResponse, "text" | "done">>,
+  ): TodoResponse {
     Object.assign(todo, changes, { updated_at: now() });
     return todo;
+  },
+
+  deleteTodo(todo: TodoResponse) {
+    for (const list of lists) list.todos = list.todos.filter((candidate) => candidate !== todo);
   },
 };

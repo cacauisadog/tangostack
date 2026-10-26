@@ -10,6 +10,7 @@ export * from './errorResponse.ts';
 export * from './todoCreate.ts';
 export * from './todoListCreate.ts';
 export * from './todoListResponse.ts';
+export * from './todoListUpdate.ts';
 export * from './todoResponse.ts';
 export * from './todoUpdate.ts';
 export * from './validationErrorItem.ts';

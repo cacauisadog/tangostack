@@ -44,8 +44,13 @@ API**, and the frontend then conforms to it.
 - Responses expose read-only `created_at` and `updated_at` (ISO 8601 strings).
 - Collections are plain arrays until pagination is needed (then use Ninja's
   `@paginate`, which wraps results in `{items, count}`).
-- Partial updates are `PATCH` with optional fields; apply them with `save()` (not
-  `.update()`) so `updated_at` is bumped.
+- Partial updates are `PATCH` with optional fields. Declare them as
+  `field: Type = Field(default=None)`, not `Type | None`: omitted fields are left
+  alone, an explicit `null` is a 422 (not a 500 from a NOT NULL column), and the
+  spec/generated types are plain optional (`done?: boolean`). Apply them with
+  `save()` (not `.update()`) so `updated_at` is bumped (`apply_patch` in `api.py`).
+- Deletes are `DELETE` returning `204` with no body (`response={204: None, ...}`,
+  `Status(204, None)`) and the usual 404. Deleting a list cascades to its todos.
 - Text input is stripped and validated at the API boundary (`min_length=1`, and a
   `max_length` equal to the column size); the database has a not-blank check as a
   backstop.

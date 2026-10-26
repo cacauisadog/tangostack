@@ -3,10 +3,13 @@ import {
   getListListsQueryKey,
   useCreateList,
   useCreateTodo,
+  useDeleteList,
+  useDeleteTodo,
   useListLists,
+  useUpdateList,
   useUpdateTodo,
 } from "#/api/generated";
-import type { listListsResponse } from "#/api/generated";
+import type { TodoListResponse, listListsResponse } from "#/api/generated";
 import InlineForm from "./InlineForm";
 import TodoListCard from "./TodoListCard";
 
@@ -24,35 +27,56 @@ export default function TodoApp() {
   const createList = useCreateList({ mutation: { onSuccess: invalidateLists } });
   const createTodo = useCreateTodo({ mutation: { onSuccess: invalidateLists } });
 
-  // Toggling is optimistic: patch the cache now, roll back if the request fails.
-  const updateTodo = useUpdateTodo({
-    mutation: {
-      onMutate: async ({ todoId, data }) => {
+  // Edits, toggles and deletes are optimistic: patch the cache now, roll back if the request fails.
+  function optimistic<TVariables>(
+    apply: (lists: TodoListResponse[], vars: TVariables) => TodoListResponse[],
+  ) {
+    return {
+      onMutate: async (vars: TVariables) => {
         await queryClient.cancelQueries({ queryKey: listsKey });
         const previous = queryClient.getQueryData<listListsResponse>(listsKey);
         queryClient.setQueryData<listListsResponse>(
           listsKey,
-          (old) =>
-            old && {
-              ...old,
-              data: old.data.map((list) => ({
-                ...list,
-                todos: list.todos.map((todo) =>
-                  todo.id === todoId ? { ...todo, done: data.done ?? todo.done } : todo,
-                ),
-              })),
-            },
+          (old) => old && { ...old, data: apply(old.data, vars) },
         );
         return { previous };
       },
-      onError: (_error, _vars, context) => {
+      onError: (_error: Error, _vars: TVariables, context?: { previous?: listListsResponse }) => {
         queryClient.setQueryData(listsKey, context?.previous);
       },
       onSettled: invalidateLists,
-    },
+    };
+  }
+
+  const updateList = useUpdateList({
+    mutation: optimistic((all, { listId, data }) =>
+      all.map((list) => (list.id === listId ? { ...list, ...data } : list)),
+    ),
+  });
+  const deleteList = useDeleteList({
+    mutation: optimistic((all, { listId }) => all.filter((list) => list.id !== listId)),
+  });
+  const updateTodo = useUpdateTodo({
+    mutation: optimistic((all, { todoId, data }) =>
+      all.map((list) => ({
+        ...list,
+        todos: list.todos.map((todo) => (todo.id === todoId ? { ...todo, ...data } : todo)),
+      })),
+    ),
+  });
+  const deleteTodo = useDeleteTodo({
+    mutation: optimistic((all, { todoId }) =>
+      all.map((list) => ({ ...list, todos: list.todos.filter((todo) => todo.id !== todoId) })),
+    ),
   });
 
-  const mutationError = createList.error ?? createTodo.error ?? updateTodo.error;
+  const mutationError =
+    createList.error ??
+    createTodo.error ??
+    updateList.error ??
+    deleteList.error ??
+    updateTodo.error ??
+    deleteTodo.error;
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,11 +110,15 @@ export default function TodoApp() {
             <TodoListCard
               key={list.id}
               list={list}
+              onRename={(name) => updateList.mutate({ listId: list.id, data: { name } })}
+              onDelete={() => deleteList.mutate({ listId: list.id })}
               onAddTodo={(text) => createTodo.mutate({ listId: list.id, data: { text } })}
               onToggleTodo={(todoId) => {
                 const todo = list.todos.find((t) => t.id === todoId);
                 if (todo) updateTodo.mutate({ todoId, data: { done: !todo.done } });
               }}
+              onEditTodo={(todoId, text) => updateTodo.mutate({ todoId, data: { text } })}
+              onDeleteTodo={(todoId) => deleteTodo.mutate({ todoId })}
             />
           ))}
         </div>
