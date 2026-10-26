@@ -163,7 +163,8 @@ first. Frontend dependencies are pinned to exact versions.
 
 ## Gotchas
 
-- After `shadcn add` or `shadcn init`, check the components: the CLI has
+- Add components with `pnpm dlx shadcn@latest add <name>` (from `frontend/`). After
+  `shadcn add` or `shadcn init`, check the components: the CLI has
   generated `import { cn } from "cn"` (a wrong npm package) instead of
   `#/lib/utils`, and may overwrite `src/lib/utils.ts`. Fix the imports and
   remove any `cn` dependency it added.
