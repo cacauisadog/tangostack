@@ -8,7 +8,12 @@ export default function SignupPage() {
   return (
     <AuthGate require="guest">
       <AuthLayout>
-        <AuthForm mode="signup" mutation={signup} />
+        <AuthForm
+          mode="signup"
+          isPending={signup.isPending}
+          error={signup.error}
+          onSubmit={(data) => signup.mutate({ data })}
+        />
       </AuthLayout>
     </AuthGate>
   );

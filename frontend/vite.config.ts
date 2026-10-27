@@ -1,5 +1,5 @@
 import { request } from "node:http";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Connect, type Plugin } from "vite";
 import { devtools } from "@tanstack/devtools-vite";
 
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -9,7 +9,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
-// Set by the e2e run: forward /api to its own Django instead of using Caddy.
+// Set by the e2e run: forward /api and /_allauth to its own Django instead of using Caddy.
 // Neither Vite's `server.proxy` nor Nitro's `devProxy` see these requests,
 // because TanStack Start's SSR middleware answers them first (as a 404 page).
 const apiProxyTarget = process.env.API_PROXY_TARGET;
@@ -19,7 +19,7 @@ function apiProxy(target: string): Plugin {
   return {
     name: "e2e-api-proxy",
     configureServer(server) {
-      server.middlewares.use("/api", (req, res) => {
+      const forward: Connect.NextHandleFunction = (req, res) => {
         const upstream = request(
           { hostname, port, method: req.method, path: req.originalUrl, headers: req.headers },
           (response) => {
@@ -29,7 +29,9 @@ function apiProxy(target: string): Plugin {
         );
         upstream.on("error", () => res.writeHead(502).end());
         req.pipe(upstream);
-      });
+      };
+      server.middlewares.use("/api", forward);
+      server.middlewares.use("/_allauth", forward);
     },
   };
 }

@@ -1,9 +1,7 @@
+import type { ErrorResponse } from "./generated-auth/model";
 import { HttpError, request } from "./http";
 
-export type AuthErrorBody = {
-  status?: number;
-  errors?: Array<{ message: string; code?: string; param?: string }>;
-};
+export type AuthErrorBody = Pick<ErrorResponse, "errors">;
 
 /**
  * Error for allauth's headless API (`{ status, errors: [{ message, code, param }] }`
@@ -37,7 +35,7 @@ export class AuthApiError<TBody = AuthErrorBody> extends HttpError<TBody> {
 }
 
 /** Orval uses this as the `error` type of the generated auth hooks. */
-export type AuthErrorType<TBody> = AuthApiError<TBody>;
+export type ErrorType<TBody> = AuthApiError<TBody>;
 
 /** Fetch function used by the orval-generated client for allauth. */
 export function authFetch<T>(url: string, options?: RequestInit): Promise<T> {

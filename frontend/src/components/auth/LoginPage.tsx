@@ -8,7 +8,12 @@ export default function LoginPage() {
   return (
     <AuthGate require="guest">
       <AuthLayout>
-        <AuthForm mode="login" mutation={login} />
+        <AuthForm
+          mode="login"
+          isPending={login.isPending}
+          error={login.error}
+          onSubmit={(data) => login.mutate({ data })}
+        />
       </AuthLayout>
     </AuthGate>
   );

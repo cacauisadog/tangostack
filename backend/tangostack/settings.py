@@ -52,6 +52,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "ninja",
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
     "tangostack.apps.accounts",
     "tangostack.apps.core",
 ]
@@ -64,6 +67,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "tangostack.urls"
@@ -99,6 +103,32 @@ DATABASES = {
         conn_max_age=600,
     )
 }
+
+
+# ==============================================================================
+# AUTHENTICATION
+# Session cookie auth through django-allauth's headless API (browser client),
+# served at /_allauth/browser/v1/. The Ninja API uses the same session.
+# ==============================================================================
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# Email-only accounts: CustomUser has no username field.
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+# No verification yet: signing up logs the user in right away.
+ACCOUNT_EMAIL_VERIFICATION = "none"
+
+HEADLESS_ONLY = True  # no server-rendered allauth pages
+HEADLESS_CLIENTS = ("browser",)  # the frontend is a browser; no app/token client
+
+# The browser client is a plain Django session: the cookie must be HTTPS-only
+# outside of local development (behind the proxy, see BEHIND_PROXY).
+SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 
 # Password validation

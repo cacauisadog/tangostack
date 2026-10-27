@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { SubmitEvent } from "react";
-import type { UseMutationResult } from "@tanstack/react-query";
 import type { AuthApiError } from "#/api/authFetcher";
-import type { AuthUser, Credentials } from "#/auth/types";
 import { Button } from "#/components/ui/button";
 import {
   Card,
@@ -17,7 +15,9 @@ import { Label } from "#/components/ui/label";
 
 interface AuthFormProps {
   mode: "login" | "signup";
-  mutation: UseMutationResult<AuthUser, AuthApiError, Credentials>;
+  onSubmit: (credentials: { email: string; password: string }) => void;
+  isPending: boolean;
+  error: AuthApiError<unknown> | null;
 }
 
 const COPY = {
@@ -44,17 +44,16 @@ const COPY = {
 } as const;
 
 /** Email + password form shared by the login and signup pages. */
-export default function AuthForm({ mode, mutation }: AuthFormProps) {
+export default function AuthForm({ mode, onSubmit, isPending, error }: AuthFormProps) {
   const copy = COPY[mode];
-  const fieldErrors = mutation.error?.fieldErrors ?? {};
+  const fieldErrors = error?.fieldErrors ?? {};
   // Anything the form can't pin on a field (409, network, ...) shows above the button.
-  const formError =
-    mutation.error && Object.keys(fieldErrors).length === 0 && mutation.error.message;
+  const formError = error && Object.keys(fieldErrors).length === 0 && error.message;
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    mutation.mutate({
+    onSubmit({
       email: String(form.get("email") ?? "").trim(),
       password: String(form.get("password") ?? ""),
     });
@@ -107,8 +106,8 @@ export default function AuthForm({ mode, mutation }: AuthFormProps) {
           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-3 pt-4">
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? copy.pending : copy.submit}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? copy.pending : copy.submit}
           </Button>
           <p className="text-sm text-muted-foreground">
             {copy.switchText}{" "}

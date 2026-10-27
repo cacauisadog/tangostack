@@ -24,12 +24,16 @@ Framework unless the project owner explicitly changes this decision.
 
 **Current state:** `apps/accounts` holds the custom user model and
 `apps/core` holds the to-do domain (`TodoList`, `Todo`) and its API. Django
-Ninja is wired up: `tangostack/api.py` creates the `NinjaAPI` instance, mounts
-the `core` router, and `tangostack/urls.py` serves it at `/api/`. The exported
-OpenAPI schema is committed as `api/openapi.json` at the repository root and
-feeds the frontend's Orval client. `django-allauth` is installed but not yet
-configured (not in `INSTALLED_APPS`, no auth backends or URLs), so the API has
-no authentication yet and the to-do lists are global.
+Ninja is wired up: `tangostack/api.py` creates the `NinjaAPI` instance (with
+`auth=django_auth`), mounts the `core` router, and `tangostack/urls.py` serves
+it at `/api/`. Authentication is django-allauth's headless **browser** client
+(session cookie + CSRF) at `/_allauth/browser/v1/`: email + password, no
+username, no email verification (`settings.py`, "AUTHENTICATION"). Lists are
+owned (`TodoList.owner`) and every query is scoped to `request.user`; another
+user's rows are 404. The exported OpenAPI schema is committed as
+`api/openapi.json` at the repository root, next to a copy of allauth's shipped
+spec in `api/allauth/` (`make api-export` writes both; tests fail when stale).
+Social login is not set up yet.
 
 ## Stack and Dependencies
 

@@ -15,10 +15,12 @@ API**, and the frontend then conforms to it.
    Django Ninja schemas and endpoints with their tests. Follow Ninja's
    conventions (see "API conventions").
 3. **Export the contract.** `make api-export` writes Ninja's OpenAPI schema to
-   `api/openapi.json` (committed; a backend test fails if it is stale).
+   `api/openapi.json` and copies allauth's shipped spec to `api/allauth/`
+   (both committed; backend tests fail if they are stale).
 4. **Regenerate the client.** `make fe-api-generate` (or `make api-generate`
-   for steps 3 and 4 together) runs Orval over `api/openapi.json` into
-   `frontend/src/api/generated/` (committed, never hand-edited).
+   for steps 3 and 4 together) runs Orval over both specs into
+   `frontend/src/api/generated/` (Ninja) and `frontend/src/api/generated-auth/`
+   (allauth). Committed, never hand-edited.
 5. **Make the frontend conform.** Typecheck errors in the mocks, seed data, UI
    and tests show exactly where the sketch drifted from the real shape. Fix them
    until `make fe-check` passes; the mocks now follow the generated types.
@@ -31,12 +33,41 @@ API**, and the frontend then conforms to it.
   Ninja; never hand-edit it, and never keep a hand-written copy of it.
 - If the frontend needs a different shape, change the Ninja schema and
   re-export. Do not bend the frontend away from what the spec says.
+- There are two contracts. Everything under `/api/` is ours (Ninja). Auth lives
+  under `/_allauth/browser/v1/auth/` and is django-allauth's headless API: its
+  spec is shipped with allauth, we only copy it (`api/allauth/`, a test compares
+  it with the installed file, so an allauth upgrade shows up as a diff). Orval's
+  `auth` entry keeps `login`, `signup`, `getSession` (GET) and `logout` (DELETE
+  session), fixes `{client}` to `browser` and drops the rest (see
+  `orval.config.ts`). Its envelope (`{status, data, meta}` / `{status, errors}`)
+  differs from Ninja's and can't be changed, so the frontend has a second error
+  class instead of bending one.
+
+## Authentication
+
+- Session cookie (Django session) through allauth's headless **browser** client;
+  the Ninja API uses the same session (`auth=django_auth` on the `NinjaAPI`).
+  Unsafe methods need the CSRF token: the fetchers send the `csrftoken` cookie
+  as `X-CSRFToken` (`api/http.ts`).
+- Email + password only, no username, no email verification (signup logs in).
+  Password rules are Django's validators; the frontend shows their messages.
+- Every `/api/*` endpoint answers `401 {"detail": "Unauthorized"}` when logged
+  out. Lists belong to `TodoList.owner`; every query is scoped to
+  `request.user`, and someone else's list or todo is a `404` (never a 403).
+- allauth's login errors are `400` with `param` (wrong password is
+  `param: password`); `401` means "not authenticated" and carries
+  `data.flows`. A successful **logout** (`DELETE session`) also answers `401`.
+- The frontend keeps the session in React Query (`src/auth/api.ts`). A `401`
+  from the Ninja API marks the session logged out (`src/api/queryClient.ts`),
+  and `AuthGate` redirects to `/login`. Routes: `/login`, `/signup` (guests
+  only), `/` (signed-in only).
 
 ## API conventions
 
-- Errors use Ninja's bodies: `404` is `{"detail": "Not Found"}` and `422` is
-  `{"detail": [{"type", "loc", "msg", "ctx?"}]}`. Both are declared in the spec
-  (`ErrorResponse`, `ValidationErrorResponse`). The frontend's `ApiError` reads `detail`.
+- Errors use Ninja's bodies: `401` is `{"detail": "Unauthorized"}`, `404` is
+  `{"detail": "Not Found"}` and `422` is `{"detail": [{"type", "loc", "msg",
+  "ctx?"}]}`. All are declared in the spec (`ErrorResponse`,
+  `ValidationErrorResponse`). The frontend's `ApiError` reads `detail`.
 - Schemas are named `<Thing>Create` / `<Thing>Update` / `<Thing>Response` (project
   convention, not enforced by Ninja); the names become the generated TypeScript types.
 - Operation IDs are set explicitly (`listLists`, `createTodo`, ...) because they
@@ -60,23 +91,33 @@ API**, and the frontend then conforms to it.
 | Path                                     | Purpose                                                            |
 | ---------------------------------------- | ------------------------------------------------------------------ |
 | `api/openapi.json`                       | The contract, exported from Django Ninja (`make api-export`)       |
-| `frontend/orval.config.ts`               | Orval config (react-query, fetch client, no faker mocks)           |
-| `frontend/src/api/fetcher.ts`            | `customFetch` used by generated code; throws `ApiError` on non-2xx |
-| `frontend/src/api/generated/`            | Generated client, hooks and models. Do not edit                    |
+| `api/allauth/`                           | Copy of allauth's shipped spec (`openapi.yaml`, `description.md`)  |
+| `frontend/orval.config.ts`               | Orval config: `tangostack` (Ninja) and `auth` (allauth) entries    |
+| `frontend/src/api/http.ts`               | Shared fetch core: CSRF header, mock-worker retry, `HttpError`     |
+| `frontend/src/api/fetcher.ts`            | `customFetch` for generated code; throws `ApiError` (`detail`)     |
+| `frontend/src/api/authFetcher.ts`        | `authFetch`; throws `AuthApiError` (`errors[]`, `fieldErrors`)     |
+| `frontend/src/api/queryClient.ts`        | QueryClient: no retry on 4xx, Ninja 401 logs the session out       |
+| `frontend/src/api/generated/`            | Generated Ninja client, hooks and models. Do not edit              |
+| `frontend/src/api/generated-auth/`       | Generated allauth client, hooks and models. Do not edit            |
+| `frontend/src/auth/api.ts`               | `useSession`, `useLogin`, `useSignup`, `useLogout` over generated  |
 | `frontend/src/mocks/db.ts`               | Typed seed data and in-memory store                                |
 | `frontend/src/mocks/handlers.ts`         | One MSW handler per operation, returning Ninja-shaped responses    |
+| `frontend/src/mocks/authHandlers.ts`     | allauth-shaped handlers (session, login, signup, logout)           |
 | `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest)                      |
 | `frontend/src/mocks/enable.ts`           | Starts the worker; on in dev by default                            |
 | `frontend/src/client.tsx`                | Client entry; awaits the worker before hydrating                   |
 | `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient`                               |
+| `frontend/src/test/renderApp.tsx`        | Real pages on a memory router (redirects, login flows)             |
 | `frontend/src/test/factories.ts`         | `todo()` / `todoList()` typed fixtures for tests                   |
 
 Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 `VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds),
 `VITE_API_MOCKING_KEEP_SESSION` (`true`: the mock login survives reloads, via localStorage).
 
-Mock logins (sketch, no backend yet): `amanda@email.com` and `bruno@email.com`,
-password `password`, each with their own lists.
+Mock logins: `amanda@email.com` and `bruno@email.com`, password `password`, each
+with their own lists. Nobody is signed in after a reload unless
+`VITE_API_MOCKING_KEEP_SESSION=true` (put it in `frontend/.env.local`). Unit
+tests ignore `.env.local` (pinned in `vitest.config.ts`).
 
 ## Mock conventions
 
@@ -109,7 +150,7 @@ password `password`, each with their own lists.
 ## Local dev stack (real backend over HTTPS)
 
 Caddy (docker compose, `caddy/Caddyfile.dev`) serves `https://dev.tangostack.com`
-and proxies `/api`, `/admin`, `/static` to Django (host `:8000`) and everything
+and proxies `/api`, `/_allauth`, `/admin`, `/static` to Django (host `:8000`) and everything
 else to Vite (host `:3000`). One origin, so no CORS.
 
 One-time setup: add `127.0.0.1 dev.tangostack.com` to `/etc/hosts`; copy
@@ -127,8 +168,8 @@ for mocks; the domain works for both).
 
 ## Commands (run from the repository root)
 
-- `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json`
-- `make fe-api-generate`: regenerate the frontend client from `api/openapi.json`
+- `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json` and copy allauth's spec to `api/allauth/`
+- `make fe-api-generate`: regenerate both frontend clients from the specs in `api/`
 - `make api-generate`: both of the above
 - `make fe-dev`: dev server (mocks on by default)
 - `make fe-dev-api`: dev server against the real backend (mocks off)
@@ -152,18 +193,25 @@ for mocks; the domain works for both).
   database (created and migrated on demand by `make e2e-backend`) and Vite on
   `:3100` with mocks off. It never touches dev data or your `:3000`/`:8000`
   servers. The only prerequisite is Postgres (`make db-up`).
-  - Tests run serially; `e2e/fixtures.ts` flushes the e2e database before every
-    test (`make e2e-flush`, e2e DB only). Import `test`/`expect` from there.
-  - Seed data through the API (`request.post`), not the database, so the
+  - Tests run serially; `e2e/fixtures.ts` flushes the e2e database (users
+    included) before every test (`make e2e-flush`, e2e DB only). Import
+    `test`/`expect` from there.
+  - The `api` fixture signs up `amanda@email.com` in the page's browser context
+    and sends the CSRF token for you; use it (not `request`) to seed data, so the
+    page and the API calls share one session. `signUp` and `csrfApi` build other
+    users (see `e2e/auth.spec.ts`).
+  - Seed data through the API, not the database, so the
     generated types and the real contract are exercised. Cover whole flows;
     keep rule-level checks in backend and vitest tests.
-  - Vite proxies `/api` itself during e2e (`API_PROXY_TARGET`, a plugin in
+  - Vite proxies `/api` and `/_allauth` itself during e2e (`API_PROXY_TARGET`, a plugin in
     `vite.config.ts`) because Caddy isn't in this stack. Vite's `server.proxy`
     and Nitro's `devProxy` don't work: TanStack Start answers `/api/*` first.
   - Use `click()` + `expect(...).toBeChecked()` on checkboxes: `.check()` reads
     the state synchronously and fails on Base UI's async-updating checkbox.
 - Backend tests that touch the API use the Django test client against `/api/...`
-  and cover our own behavior (validation, 404s, query counts), not Django's.
+  and cover our own behavior (validation, 404s, ownership, query counts), not
+  Django's or allauth's. The `api_client` fixture (`tangostack/conftest.py`) is
+  signed in as `user`; pytest-django's plain `client` is anonymous.
 
 ## Dependencies
 

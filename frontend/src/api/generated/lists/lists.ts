@@ -60,12 +60,19 @@ export type listListsResponse200 = {
   status: 200
 }
 
+export type listListsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type listListsResponseSuccess = (listListsResponse200) & {
   headers: Headers;
 };
-;
+export type listListsResponseError = (listListsResponse401) & {
+  headers: Headers;
+};
 
-export type listListsResponse = (listListsResponseSuccess)
+export type listListsResponse = (listListsResponseSuccess | listListsResponseError)
 
 export const getListListsUrl = () => {
 
@@ -100,7 +107,7 @@ export const getListListsQueryKey = () => {
     }
 
 
-export const getListListsQueryOptions = <TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getListListsQueryOptions = <TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -119,10 +126,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListListsQueryResult = NonNullable<Awaited<ReturnType<typeof listLists>>>
-export type ListListsQueryError = ErrorType<unknown>
+export type ListListsQueryError = ErrorType<ErrorResponse>
 
 
-export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<unknown>>(
+export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<ErrorResponse>>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listLists>>,
@@ -132,7 +139,7 @@ export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TErr
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<unknown>>(
+export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<ErrorResponse>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listLists>>,
@@ -142,7 +149,7 @@ export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TErr
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<unknown>>(
+export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<ErrorResponse>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
@@ -150,7 +157,7 @@ export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TErr
  * @summary List all to-do lists with their todos
  */
 
-export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<unknown>>(
+export function useListLists<TData = Awaited<ReturnType<typeof listLists>>, TError = ErrorType<ErrorResponse>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listLists>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -172,6 +179,11 @@ export type createListResponse201 = {
   status: 201
 }
 
+export type createListResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type createListResponse422 = {
   data: ValidationErrorResponse
   status: 422
@@ -180,7 +192,7 @@ export type createListResponse422 = {
 export type createListResponseSuccess = (createListResponse201) & {
   headers: Headers;
 };
-export type createListResponseError = (createListResponse422) & {
+export type createListResponseError = (createListResponse401 | createListResponse422) & {
   headers: Headers;
 };
 
@@ -228,7 +240,7 @@ return customFetch<createListResponse>(getCreateListUrl(),
 
 export const getCreateListMutationKey = () => ['createList'] as const;
 
-export const getCreateListMutationOptions = <TError = ErrorType<ValidationErrorResponse>,
+export const getCreateListMutationOptions = <TError = ErrorType<ErrorResponse | ValidationErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createList>>, TError,CreateListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createList>>, TError,CreateListMutationVariables, TContext> => {
 
@@ -257,13 +269,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateListMutationResult = NonNullable<Awaited<ReturnType<typeof createList>>>
     export type CreateListMutationBody = TodoListCreate
-    export type CreateListMutationError = ErrorType<ValidationErrorResponse>
+    export type CreateListMutationError = ErrorType<ErrorResponse | ValidationErrorResponse>
     export type CreateListMutationVariables = {data: TodoListCreate}
 
     /**
  * @summary Create a to-do list
  */
-export const useCreateList = <TError = ErrorType<ValidationErrorResponse>,
+export const useCreateList = <TError = ErrorType<ErrorResponse | ValidationErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createList>>, TError,CreateListMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof createList>>,
@@ -278,6 +290,11 @@ export const useCreateList = <TError = ErrorType<ValidationErrorResponse>,
   status: 204
 }
 
+export type deleteListResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type deleteListResponse404 = {
   data: ErrorResponse
   status: 404
@@ -286,7 +303,7 @@ export type deleteListResponse404 = {
 export type deleteListResponseSuccess = (deleteListResponse204) & {
   headers: Headers;
 };
-export type deleteListResponseError = (deleteListResponse404) & {
+export type deleteListResponseError = (deleteListResponse401 | deleteListResponse404) & {
   headers: Headers;
 };
 
@@ -370,6 +387,11 @@ export const useDeleteList = <TError = ErrorType<ErrorResponse>,
   status: 200
 }
 
+export type updateListResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type updateListResponse404 = {
   data: ErrorResponse
   status: 404
@@ -383,7 +405,7 @@ export type updateListResponse422 = {
 export type updateListResponseSuccess = (updateListResponse200) & {
   headers: Headers;
 };
-export type updateListResponseError = (updateListResponse404 | updateListResponse422) & {
+export type updateListResponseError = (updateListResponse401 | updateListResponse404 | updateListResponse422) & {
   headers: Headers;
 };
 

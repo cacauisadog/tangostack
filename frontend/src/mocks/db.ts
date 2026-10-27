@@ -1,9 +1,9 @@
 import type { TodoListResponse, TodoResponse } from "#/api/generated/model";
-import type { AuthUser } from "#/auth/types";
+import type { User } from "#/api/generated-auth";
 import { env } from "#/env";
 
 /** Mock accounts. Both use the password `password`. */
-export type MockUser = AuthUser & { password: string };
+export type MockUser = User & { id: number; email: string; password: string };
 
 export const seedUsers: MockUser[] = [
   {

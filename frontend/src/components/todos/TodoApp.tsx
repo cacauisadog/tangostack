@@ -22,7 +22,7 @@ export default function TodoApp() {
     data: lists,
     isPending,
     isError,
-  } = useListLists({ query: { select: (res) => res.data } });
+  } = useListLists({ query: { select: (res) => (res.status === 200 ? res.data : []) } });
 
   const createList = useCreateList({ mutation: { onSuccess: invalidateLists } });
   const createTodo = useCreateTodo({ mutation: { onSuccess: invalidateLists } });
@@ -35,9 +35,8 @@ export default function TodoApp() {
       onMutate: async (vars: TVariables) => {
         await queryClient.cancelQueries({ queryKey: listsKey });
         const previous = queryClient.getQueryData<listListsResponse>(listsKey);
-        queryClient.setQueryData<listListsResponse>(
-          listsKey,
-          (old) => old && { ...old, data: apply(old.data, vars) },
+        queryClient.setQueryData<listListsResponse>(listsKey, (old) =>
+          old?.status === 200 ? { ...old, data: apply(old.data, vars) } : old,
         );
         return { previous };
       },

@@ -36,6 +36,11 @@ export type createTodoResponse201 = {
   status: 201
 }
 
+export type createTodoResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type createTodoResponse404 = {
   data: ErrorResponse
   status: 404
@@ -49,7 +54,7 @@ export type createTodoResponse422 = {
 export type createTodoResponseSuccess = (createTodoResponse201) & {
   headers: Headers;
 };
-export type createTodoResponseError = (createTodoResponse404 | createTodoResponse422) & {
+export type createTodoResponseError = (createTodoResponse401 | createTodoResponse404 | createTodoResponse422) & {
   headers: Headers;
 };
 
@@ -148,6 +153,11 @@ export const useCreateTodo = <TError = ErrorType<ErrorResponse | ValidationError
   status: 204
 }
 
+export type deleteTodoResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type deleteTodoResponse404 = {
   data: ErrorResponse
   status: 404
@@ -156,7 +166,7 @@ export type deleteTodoResponse404 = {
 export type deleteTodoResponseSuccess = (deleteTodoResponse204) & {
   headers: Headers;
 };
-export type deleteTodoResponseError = (deleteTodoResponse404) & {
+export type deleteTodoResponseError = (deleteTodoResponse401 | deleteTodoResponse404) & {
   headers: Headers;
 };
 
@@ -240,6 +250,11 @@ export const useDeleteTodo = <TError = ErrorType<ErrorResponse>,
   status: 200
 }
 
+export type updateTodoResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
 export type updateTodoResponse404 = {
   data: ErrorResponse
   status: 404
@@ -253,7 +268,7 @@ export type updateTodoResponse422 = {
 export type updateTodoResponseSuccess = (updateTodoResponse200) & {
   headers: Headers;
 };
-export type updateTodoResponseError = (updateTodoResponse404 | updateTodoResponse422) & {
+export type updateTodoResponseError = (updateTodoResponse401 | updateTodoResponse404 | updateTodoResponse422) & {
   headers: Headers;
 };
 

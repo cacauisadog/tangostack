@@ -209,6 +209,13 @@
         "title": "ValidationErrorResponse",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "SessionAuth": {
+        "in": "cookie",
+        "name": "sessionid",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -236,8 +243,23 @@
               }
             },
             "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "List all to-do lists with their todos",
         "tags": [
           "lists"
@@ -267,6 +289,16 @@
             },
             "description": "Created"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -278,6 +310,11 @@
             "description": "Unprocessable Content"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Create a to-do list",
         "tags": [
           "lists"
@@ -303,6 +340,16 @@
           "204": {
             "description": "No Content"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -314,6 +361,11 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Delete a to-do list and its todos",
         "tags": [
           "lists"
@@ -354,6 +406,16 @@
             },
             "description": "OK"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -375,6 +437,11 @@
             "description": "Unprocessable Content"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Update a to-do list (rename it)",
         "tags": [
           "lists"
@@ -417,6 +484,16 @@
             },
             "description": "Created"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -438,6 +515,11 @@
             "description": "Unprocessable Content"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Add a todo to a list",
         "tags": [
           "todos"
@@ -463,6 +545,16 @@
           "204": {
             "description": "No Content"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -474,6 +566,11 @@
             "description": "Not Found"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Delete a todo",
         "tags": [
           "todos"
@@ -514,6 +611,16 @@
             },
             "description": "OK"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -535,6 +642,11 @@
             "description": "Unprocessable Content"
           }
         },
+        "security": [
+          {
+            "SessionAuth": []
+          }
+        ],
         "summary": "Update a todo (edit its text, mark it done or undone)",
         "tags": [
           "todos"

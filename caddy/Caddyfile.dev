@@ -4,7 +4,7 @@ dev.tangostack.com {
 	# Certificate from Caddy's local CA; trust it once with `make proxy-trust`.
 	tls internal
 
-	@django path /api/* /admin/* /static/*
+	@django path /api/* /_allauth/* /admin/* /static/*
 	handle @django {
 		reverse_proxy host.docker.internal:8000
 	}

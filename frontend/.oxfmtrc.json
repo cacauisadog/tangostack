@@ -4,6 +4,7 @@
     "src/routeTree.gen.ts",
     "pnpm-lock.yaml",
     "src/api/generated",
+    "src/api/generated-auth",
     "public/mockServiceWorker.js"
   ]
 }

@@ -1,12 +1,17 @@
 import { delay, http, HttpResponse } from "msw";
-import type { AuthenticatedResponse, Credentials, UnauthenticatedResponse } from "#/auth/types";
-import type { AuthErrorBody } from "#/api/authFetcher";
+import type {
+  AuthenticatedResponse,
+  AuthenticationResponse,
+  ConflictResponse,
+  ErrorResponse,
+  ErrorResponseErrorsItem,
+} from "#/api/generated-auth";
 import { db, type MockUser } from "./db";
 
 // allauth-shaped bodies (its own envelope, not Ninja's). Keep in sync with allauth's spec.
 const BASE = "*/_allauth/browser/v1/auth";
 
-const unauthenticatedBody = (): UnauthenticatedResponse => ({
+const unauthenticatedBody = (): AuthenticationResponse => ({
   status: 401,
   data: { flows: [{ id: "login" }, { id: "signup" }] },
   meta: { is_authenticated: false },
@@ -26,8 +31,8 @@ const authenticatedBody = (user: MockUser): AuthenticatedResponse => ({
   meta: { is_authenticated: true },
 });
 
-const badRequest = (...errors: NonNullable<AuthErrorBody["errors"]>) =>
-  HttpResponse.json<AuthErrorBody>({ status: 400, errors }, { status: 400 });
+const badRequest = (...errors: ErrorResponseErrorsItem[]) =>
+  HttpResponse.json<ErrorResponse>({ status: 400, errors }, { status: 400 });
 
 const required = (param: string) => ({
   message: "This field is required.",
@@ -37,7 +42,7 @@ const required = (param: string) => ({
 
 /** The password rules Django's default validators enforce (the ones worth mocking). */
 function passwordProblems(password: string) {
-  const errors: NonNullable<AuthErrorBody["errors"]> = [];
+  const errors: ErrorResponseErrorsItem[] = [];
   if (password.length < 8) {
     errors.push({
       message: "This password is too short. It must contain at least 8 characters.",
@@ -64,13 +69,10 @@ export const authHandlers = [
       : HttpResponse.json(unauthenticatedBody(), { status: 401 });
   }),
 
-  http.post<never, Partial<Credentials>>(`${BASE}/login`, async ({ request }) => {
+  http.post<never, { email?: string; password?: string }>(`${BASE}/login`, async ({ request }) => {
     await delay();
     if (db.currentUser()) {
-      return HttpResponse.json(
-        { status: 409, errors: [{ message: "You must be logged out to do this." }] },
-        { status: 409 },
-      );
+      return HttpResponse.json<ConflictResponse>({ status: 409 }, { status: 409 });
     }
     const { email, password } = await request.json();
     if (!email) return badRequest(required("email"));
@@ -87,16 +89,13 @@ export const authHandlers = [
     return HttpResponse.json(authenticatedBody(user));
   }),
 
-  http.post<never, Partial<Credentials>>(`${BASE}/signup`, async ({ request }) => {
+  http.post<never, { email?: string; password?: string }>(`${BASE}/signup`, async ({ request }) => {
     await delay();
     if (db.currentUser()) {
-      return HttpResponse.json(
-        { status: 409, errors: [{ message: "You must be logged out to do this." }] },
-        { status: 409 },
-      );
+      return HttpResponse.json<ConflictResponse>({ status: 409 }, { status: 409 });
     }
     const { email, password } = await request.json();
-    const errors: NonNullable<AuthErrorBody["errors"]> = [];
+    const errors: ErrorResponseErrorsItem[] = [];
     if (!email) errors.push(required("email"));
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       errors.push({ message: "Enter a valid email address.", code: "invalid", param: "email" });

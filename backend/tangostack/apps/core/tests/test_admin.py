@@ -6,11 +6,11 @@ from tangostack.apps.core.models import Todo, TodoList
 pytestmark = pytest.mark.django_db
 
 
-def test_list_changelist_shows_todo_counts(admin_client):
-    work = TodoList.objects.create(name="Work")
+def test_list_changelist_shows_todo_counts(admin_client, user):
+    work = TodoList.objects.create(owner=user, name="Work")
     Todo.objects.create(todo_list=work, text="send report")
     Todo.objects.create(todo_list=work, text="book flights")
-    TodoList.objects.create(name="Home")
+    TodoList.objects.create(owner=user, name="Home")
 
     response = admin_client.get(reverse("admin:core_todolist_changelist"))
 

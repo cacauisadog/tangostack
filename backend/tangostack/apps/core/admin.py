@@ -14,8 +14,10 @@ class TodoInline(admin.TabularInline):
 
 @admin.register(TodoList)
 class TodoListAdmin(admin.ModelAdmin):
-    list_display = ("name", "todo_count", "created_at", "updated_at")
-    search_fields = ("name",)
+    list_display = ("name", "owner", "todo_count", "created_at", "updated_at")
+    list_select_related = ("owner",)
+    search_fields = ("name", "owner__email")
+    autocomplete_fields = ("owner",)
     readonly_fields = ("created_at", "updated_at")
     inlines = (TodoInline,)
 
@@ -32,6 +34,6 @@ class TodoAdmin(admin.ModelAdmin):
     list_display = ("text", "todo_list", "done", "created_at", "updated_at")
     list_filter = ("done",)
     list_select_related = ("todo_list",)
-    search_fields = ("text", "todo_list__name")
+    search_fields = ("text", "todo_list__name", "todo_list__owner__email")
     autocomplete_fields = ("todo_list",)
     readonly_fields = ("created_at", "updated_at")
