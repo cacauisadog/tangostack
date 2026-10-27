@@ -60,7 +60,18 @@ API**, and the frontend then conforms to it.
 - The frontend keeps the session in React Query (`src/auth/api.ts`). A `401`
   from the Ninja API marks the session logged out (`src/api/queryClient.ts`),
   and `AuthGate` redirects to `/login`. Routes: `/login`, `/signup` (guests
-  only), `/` (signed-in only).
+  only), `/` (signed-in only), `/auth/callback` (return from a provider).
+- Social login: Google, redirect flow. A provider exists only when its
+  credentials are set (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in
+  `backend/.env`; redirect URI `https://dev.tangostack.com/accounts/google/login/callback/`),
+  and the logged-out session lists it in the `provider_redirect` flow, which is
+  what shows the button (`SocialLogin`). The start is a real form POST (allauth
+  answers 302, not XHR); the backend returns to `/auth/callback`, with `?error=`
+  on failure. `callback_url` must be same-origin or in `ALLOWED_HOSTS`. No
+  email-based account linking: emails aren't verified on password signup, so it
+  would allow pre-registering someone's address. The spec's `Flow` type lacks
+  `providers` (`ProviderFlow` in `auth/api.ts`). Mocks sign in a fake Google
+  user; e2e runs the backend with fake credentials and only checks the redirect.
 
 ## API conventions
 

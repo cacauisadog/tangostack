@@ -12,6 +12,7 @@ import {
 } from "#/components/ui/card";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
+import SocialLogin from "./SocialLogin";
 
 interface AuthFormProps {
   mode: "login" | "signup";
@@ -109,6 +110,7 @@ export default function AuthForm({ mode, onSubmit, isPending, error }: AuthFormP
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? copy.pending : copy.submit}
           </Button>
+          <SocialLogin />
           <p className="text-sm text-muted-foreground">
             {copy.switchText}{" "}
             <Link to={copy.switchTo} className="text-foreground underline underline-offset-4">

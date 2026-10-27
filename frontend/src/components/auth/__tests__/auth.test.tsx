@@ -133,3 +133,57 @@ test("sends a signed-in user to the login page when the API says the session exp
   expect(await screen.findByText("Log in", cardTitle)).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/login");
 });
+
+test("offers Google on login and signup, and signing in lands on the user's lists", async () => {
+  db.reset();
+  const user = userEvent.setup();
+  const router = renderApp("/signup");
+
+  await user.click(await screen.findByRole("button", { name: "Continue with Google" }));
+
+  expect(await screen.findByText("My lists")).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe("/");
+  expect(screen.getByText("vanilda@gmail.com")).toBeInTheDocument();
+  // a brand-new account: none of the other users' lists
+  expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument();
+});
+
+test("hides the social buttons when the backend offers no provider", async () => {
+  db.reset();
+  server.use(
+    http.get("*/_allauth/browser/v1/auth/session", () =>
+      HttpResponse.json(
+        {
+          status: 401,
+          data: { flows: [{ id: "login" }, { id: "signup" }] },
+          meta: { is_authenticated: false },
+        },
+        { status: 401 },
+      ),
+    ),
+  );
+  renderApp("/login");
+
+  await screen.findByText("Log in", cardTitle);
+  expect(screen.queryByRole("button", { name: /continue with/i })).not.toBeInTheDocument();
+});
+
+test("a failed provider handshake explains it and links back to login", async () => {
+  db.reset();
+  const user = userEvent.setup();
+  const router = renderApp("/auth/callback?error=unknown");
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("(unknown)");
+  await user.click(screen.getByRole("button", { name: "Back to log in" }));
+
+  expect(router.state.location.pathname).toBe("/login");
+});
+
+test("returning from the provider loads the new session", async () => {
+  // the backend already set the session cookie before redirecting here
+  db.reset([]);
+  const router = renderApp("/auth/callback");
+
+  expect(await screen.findByText("My lists")).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe("/");
+});

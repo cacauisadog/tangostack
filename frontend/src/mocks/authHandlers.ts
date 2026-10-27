@@ -6,14 +6,22 @@ import type {
   ErrorResponse,
   ErrorResponseErrorsItem,
 } from "#/api/generated-auth";
+import type { ProviderFlow } from "#/auth/api";
 import { db, type MockUser } from "./db";
 
 // allauth-shaped bodies (its own envelope, not Ninja's). Keep in sync with allauth's spec.
 const BASE = "*/_allauth/browser/v1/auth";
+const GOOGLE_EMAIL = "vanilda@gmail.com";
+
+const flows: ProviderFlow[] = [
+  { id: "login" },
+  { id: "signup" },
+  { id: "provider_redirect", providers: ["google"] },
+];
 
 const unauthenticatedBody = (): AuthenticationResponse => ({
   status: 401,
-  data: { flows: [{ id: "login" }, { id: "signup" }] },
+  data: { flows },
   meta: { is_authenticated: false },
 });
 
@@ -114,6 +122,17 @@ export const authHandlers = [
     const user = db.addUser(email!, password!);
     db.signIn(user);
     return HttpResponse.json(authenticatedBody(user));
+  }),
+
+  // The real endpoint 302s to the provider; the mock skips that and signs in a
+  // Google user. Visit /auth/callback?error=unknown to see a failed handshake.
+  http.post(`${BASE}/provider/redirect`, async () => {
+    await delay();
+    const user =
+      db.findUserByEmail(GOOGLE_EMAIL) ??
+      Object.assign(db.addUser(GOOGLE_EMAIL, ""), { has_usable_password: false });
+    db.signIn(user);
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // allauth answers a successful logout with 401 ("no longer authenticated").

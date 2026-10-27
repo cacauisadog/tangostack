@@ -77,3 +77,26 @@ test("users only see their own lists", async ({ page, browser }) => {
   expect(attempt.status()).toBe(404);
   await bruno.close();
 });
+
+test("Continue with Google sends the browser to Google, and a failed return explains itself", async ({
+  page,
+}) => {
+  // the e2e backend has fake Google credentials; never reach the real Google
+  await page.route("https://accounts.google.com/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<p>Google sign-in</p>" }),
+  );
+  await page.goto("/login");
+
+  const toGoogle = page.waitForRequest("https://accounts.google.com/**");
+  await page.getByRole("button", { name: "Continue with Google" }).click();
+
+  const url = new URL((await toGoogle).url());
+  expect(url.searchParams.get("client_id")).toBe("e2e.apps.googleusercontent.com");
+  expect(url.searchParams.get("redirect_uri")).toContain("/accounts/google/login/callback/");
+
+  // what allauth does when the handshake fails
+  await page.goto("/auth/callback?error=unknown");
+  await expect(page.getByRole("alert")).toContainText("Couldn't log you in");
+  await page.getByRole("button", { name: "Back to log in" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+});

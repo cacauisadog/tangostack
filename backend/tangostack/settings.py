@@ -55,6 +55,8 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.headless",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
     "tangostack.apps.accounts",
     "tangostack.apps.core",
 ]
@@ -124,6 +126,31 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 
 HEADLESS_ONLY = True  # no server-rendered allauth pages
 HEADLESS_CLIENTS = ("browser",)  # the frontend is a browser; no app/token client
+
+# Where allauth sends the browser after a social login fails (relative: the
+# frontend and API share an origin, see caddy/). The success URL is the
+# `callback_url` the frontend passes when it starts the flow.
+HEADLESS_FRONTEND_URLS = {"socialaccount_login_error": "/auth/callback"}
+
+# Social login (redirect flow). A provider only exists once its credentials are
+# set, so without them the API doesn't offer it and the frontend hides its button.
+# Google: https://console.cloud.google.com/apis/credentials, OAuth client of type
+# "Web application" with redirect URI `<backend origin>/accounts/google/login/callback/`.
+# Deliberately no SOCIALACCOUNT_EMAIL_AUTHENTICATION: emails aren't verified on
+# password signup, so linking by email would let someone pre-register a victim's
+# address and keep access after the victim signs in with Google.
+GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        **(
+            {"APPS": [{"client_id": GOOGLE_CLIENT_ID, "secret": GOOGLE_CLIENT_SECRET}]}
+            if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+            else {}
+        ),
+    }
+}
 
 # The browser client is a plain Django session: the cookie must be HTTPS-only
 # outside of local development (behind the proxy, see BEHIND_PROXY).

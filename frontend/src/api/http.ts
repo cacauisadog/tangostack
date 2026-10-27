@@ -22,7 +22,7 @@ function resolveUrl(url: string) {
   return base ? new URL(url, base).toString() : url;
 }
 
-function csrfToken() {
+export function csrfToken() {
   return globalThis.document?.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1];
 }
 

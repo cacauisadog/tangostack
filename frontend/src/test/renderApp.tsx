@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "#/api/queryClient";
 import { render } from "@testing-library/react";
 import HomePage from "#/components/HomePage";
+import AuthCallbackPage from "#/components/auth/AuthCallbackPage";
 import LoginPage from "#/components/auth/LoginPage";
 import SignupPage from "#/components/auth/SignupPage";
 import { registerClient } from "./clients";
@@ -26,11 +27,21 @@ export function renderApp(initialPath: string) {
   const root = createRootRoute({ component: Outlet });
   const page = (path: string, component: () => React.ReactNode) =>
     createRoute({ getParentRoute: () => root, path, component });
+  const callback = createRoute({
+    getParentRoute: () => root,
+    path: "/auth/callback",
+    validateSearch: (search: Record<string, unknown>): { error?: string } =>
+      typeof search.error === "string" ? { error: search.error } : {},
+    component: function Callback() {
+      return <AuthCallbackPage error={callback.useSearch().error} />;
+    },
+  });
   const router = createRouter({
     routeTree: root.addChildren([
       page("/", HomePage),
       page("/login", LoginPage),
       page("/signup", SignupPage),
+      callback,
     ]),
     history: createMemoryHistory({ initialEntries: [initialPath] }),
   });

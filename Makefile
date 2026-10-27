@@ -93,7 +93,7 @@ fe-e2e-report: ## Open the last Playwright HTML report
 
 # e2e runs against its own database and ports so it never touches dev data.
 E2E_DB = tangostack_e2e
-E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1
+E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret
 
 e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001
 	@docker compose exec -T postgres sh -c "psql -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$(E2E_DB)'\" | grep -q 1 || createdb -U postgres $(E2E_DB)"
