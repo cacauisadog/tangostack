@@ -72,7 +72,11 @@ API**, and the frontend then conforms to it.
 | `frontend/src/test/factories.ts`         | `todo()` / `todoList()` typed fixtures for tests                   |
 
 Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
-`VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds).
+`VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds),
+`VITE_API_MOCKING_KEEP_SESSION` (`true`: the mock login survives reloads, via localStorage).
+
+Mock logins (sketch, no backend yet): `amanda@email.com` and `bruno@email.com`,
+password `password`, each with their own lists.
 
 ## Mock conventions
 

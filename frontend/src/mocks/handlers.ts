@@ -10,10 +10,13 @@ import type {
   ValidationErrorItem,
   ValidationErrorResponse,
 } from "#/api/generated/model";
+import { authHandlers } from "./authHandlers";
 import { db } from "./db";
 
-// Ninja-shaped errors: 404 is `{ detail: "Not Found" }`, 422 is a `detail` list.
+// Ninja-shaped errors: 401/404 are `{ detail: "..." }`, 422 is a `detail` list.
 const notFound = () => HttpResponse.json<ErrorResponse>({ detail: "Not Found" }, { status: 404 });
+const unauthorized = () =>
+  HttpResponse.json<ErrorResponse>({ detail: "Unauthorized" }, { status: 401 });
 const unprocessable = (...issues: ValidationErrorItem[]) =>
   HttpResponse.json<ValidationErrorResponse>({ detail: issues }, { status: 422 });
 
@@ -54,13 +57,17 @@ function requiredString(field: string, value: unknown, maxLength: number) {
 
 /** One handler per operation in the backend's OpenAPI spec (api/openapi.json). */
 export const handlers = [
-  http.get("*/api/lists", async () => {
+  ...authHandlers,
+
+  http.get<never, never, TodoListResponse[] | ErrorResponse>("*/api/lists", async () => {
     await delay();
+    if (!db.currentUser()) return unauthorized();
     return HttpResponse.json<TodoListResponse[]>(db.getLists());
   }),
 
   http.post<never, Partial<TodoListCreate>>("*/api/lists", async ({ request }) => {
     await delay();
+    if (!db.currentUser()) return unauthorized();
     const name = requiredString("name", (await request.json()).name, MAX_NAME_LENGTH);
     if (name.issue) return unprocessable(name.issue);
     return HttpResponse.json<TodoListResponse>(db.addList(name.value), { status: 201 });
@@ -70,6 +77,7 @@ export const handlers = [
     "*/api/lists/:listId/todos",
     async ({ params, request }) => {
       await delay();
+      if (!db.currentUser()) return unauthorized();
       // Like Ninja, validate the body before looking the list up.
       const text = requiredString("text", (await request.json()).text, MAX_TEXT_LENGTH);
       if (text.issue) return unprocessable(text.issue);
@@ -83,6 +91,7 @@ export const handlers = [
     "*/api/lists/:listId",
     async ({ params, request }) => {
       await delay();
+      if (!db.currentUser()) return unauthorized();
       const body = await request.json();
       // Omitted fields are left alone; an explicit `null` is rejected like in the backend.
       const name = "name" in body ? requiredString("name", body.name, MAX_NAME_LENGTH) : undefined;
@@ -97,6 +106,7 @@ export const handlers = [
 
   http.delete<{ listId: string }>("*/api/lists/:listId", async ({ params }) => {
     await delay();
+    if (!db.currentUser()) return unauthorized();
     const list = db.findList(params.listId);
     if (!list) return notFound();
     db.deleteList(list);
@@ -105,6 +115,7 @@ export const handlers = [
 
   http.patch<{ todoId: string }, TodoUpdate>("*/api/todos/:todoId", async ({ params, request }) => {
     await delay();
+    if (!db.currentUser()) return unauthorized();
     const body = await request.json();
     const text = "text" in body ? requiredString("text", body.text, MAX_TEXT_LENGTH) : undefined;
     if (text?.issue) return unprocessable(text.issue);
@@ -135,6 +146,7 @@ export const handlers = [
 
   http.delete<{ todoId: string }>("*/api/todos/:todoId", async ({ params }) => {
     await delay();
+    if (!db.currentUser()) return unauthorized();
     const todo = db.findTodo(params.todoId);
     if (!todo) return notFound();
     db.deleteTodo(todo);

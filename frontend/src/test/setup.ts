@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 import { db } from "#/mocks/db";
 import { server } from "#/mocks/server";
-import { settleClients } from "./render";
+import { settleClients } from "./clients";
 
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 

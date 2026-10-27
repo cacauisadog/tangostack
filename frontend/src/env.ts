@@ -16,6 +16,8 @@ export const env = createEnv({
     VITE_APP_TITLE: z.string().min(1).optional(),
     VITE_API_URL: z.url().optional(),
     VITE_API_MOCKING: z.stringbool().optional(),
+    // VITE_API_MOCKING_KEEP_SESSION: z.stringbool().optional(),
+    VITE_API_MOCKING_KEEP_SESSION: z.stringbool().optional(),
   },
 
   /**

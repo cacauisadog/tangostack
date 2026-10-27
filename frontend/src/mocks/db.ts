@@ -1,11 +1,34 @@
 import type { TodoListResponse, TodoResponse } from "#/api/generated/model";
+import type { AuthUser } from "#/auth/types";
+import { env } from "#/env";
+
+/** Mock accounts. Both use the password `password`. */
+export type MockUser = AuthUser & { password: string };
+
+export const seedUsers: MockUser[] = [
+  {
+    id: 1,
+    email: "amanda@email.com",
+    display: "Amanda Pepinha",
+    has_usable_password: true,
+    password: "password",
+  },
+  {
+    id: 2,
+    email: "bruno@email.com",
+    display: "Bruno Carnietto",
+    has_usable_password: true,
+    password: "password",
+  },
+];
 
 /**
  * In-memory "database" behind the MSW handlers. Typed with the generated API
  * models, so a contract change that this seed data doesn't match fails typecheck.
  * Edit the seed freely; it only lives until the page is reloaded.
+ * Each user only sees their own lists.
  */
-export const seedLists: TodoListResponse[] = [
+const anaLists: TodoListResponse[] = [
   {
     id: "5d1b2a0e-7c34-4a51-9a52-0b1f4f6d9a01",
     name: "Work",
@@ -59,30 +82,151 @@ export const seedLists: TodoListResponse[] = [
   },
 ];
 
+const brunoLists: TodoListResponse[] = [
+  {
+    id: "5d1b2a0e-7c34-4a51-9a52-0b1f4f6d9b01",
+    name: "Trip to Lisbon",
+    created_at: "2026-10-18T20:00:00.000Z",
+    updated_at: "2026-10-18T20:00:00.000Z",
+    todos: [
+      {
+        id: "b9f1e6c2-3a7d-4c1e-8f20-1d2a5e7b0d01",
+        text: "Book the flights",
+        done: true,
+        created_at: "2026-10-18T20:05:00.000Z",
+        updated_at: "2026-10-19T09:00:00.000Z",
+      },
+      {
+        id: "b9f1e6c2-3a7d-4c1e-8f20-1d2a5e7b0d02",
+        text: "Reserve a table at Time Out Market",
+        done: false,
+        created_at: "2026-10-18T20:10:00.000Z",
+        updated_at: "2026-10-18T20:10:00.000Z",
+      },
+    ],
+  },
+  {
+    id: "5d1b2a0e-7c34-4a51-9a52-0b1f4f6d9b02",
+    name: "Reading",
+    created_at: "2026-10-22T21:00:00.000Z",
+    updated_at: "2026-10-22T21:00:00.000Z",
+    todos: [
+      {
+        id: "b9f1e6c2-3a7d-4c1e-8f20-1d2a5e7b0d11",
+        text: "Finish Designing Data-Intensive Applications",
+        done: false,
+        created_at: "2026-10-22T21:01:00.000Z",
+        updated_at: "2026-10-22T21:01:00.000Z",
+      },
+    ],
+  },
+];
+
+export const seedLists: Record<number, TodoListResponse[]> = { 1: anaLists, 2: brunoLists };
+
 function clone(lists: TodoListResponse[]): TodoListResponse[] {
   return structuredClone(lists);
 }
 
 const now = () => new Date().toISOString();
 
-let lists: TodoListResponse[] = clone(seedLists);
+const SESSION_KEY = "tangostack:mock-session";
+
+/** Opt-in (`VITE_API_MOCKING_KEEP_SESSION`): remember who is signed in across reloads. */
+function persistSession(userId: number | null) {
+  if (!env.VITE_API_MOCKING_KEEP_SESSION) return;
+  try {
+    if (userId === null) localStorage.removeItem(SESSION_KEY);
+    else localStorage.setItem(SESSION_KEY, String(userId));
+  } catch {
+    // storage unavailable; the session just won't survive a reload
+  }
+}
+
+function restoreSession(): number | null {
+  if (!env.VITE_API_MOCKING_KEEP_SESSION) return null;
+  try {
+    const id = Number(localStorage.getItem(SESSION_KEY));
+    return seedUsers.some((user) => user.id === id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+let users: MockUser[] = structuredClone(seedUsers);
+let listsByUser = new Map<number, TodoListResponse[]>();
+let sessionUserId: number | null = null;
+
+function seed() {
+  users = structuredClone(seedUsers);
+  listsByUser = new Map(Object.entries(seedLists).map(([id, lists]) => [Number(id), clone(lists)]));
+  sessionUserId = restoreSession();
+}
+seed();
+
+/** The signed-in user's lists. The handlers check the session first. */
+function mine(): TodoListResponse[] {
+  if (sessionUserId === null) return [];
+  let lists = listsByUser.get(sessionUserId);
+  if (!lists) listsByUser.set(sessionUserId, (lists = []));
+  return lists;
+}
 
 export const db = {
-  /** Replace all data. Defaults to the seed; tests pass `[]` for a blank slate. */
-  reset(next: TodoListResponse[] = seedLists) {
-    lists = clone(next);
+  /**
+   * With no argument: the dev seed, signed out (or the remembered user, see
+   * `persistSession`). With lists: the test setup, signed in as the first
+   * seed user with exactly these lists (everyone else starts empty).
+   */
+  reset(next?: TodoListResponse[]) {
+    if (!next) return seed();
+    users = structuredClone(seedUsers);
+    listsByUser = new Map([[seedUsers[0].id, clone(next)]]);
+    sessionUserId = seedUsers[0].id;
+  },
+
+  currentUser(): MockUser | undefined {
+    return users.find((user) => user.id === sessionUserId);
+  },
+
+  findUserByEmail(email: string): MockUser | undefined {
+    return users.find((user) => user.email === email.toLowerCase());
+  },
+
+  addUser(email: string, password: string): MockUser {
+    const user: MockUser = {
+      id: Math.max(0, ...users.map((candidate) => candidate.id)) + 1,
+      email: email.toLowerCase(),
+      display: email.split("@")[0],
+      has_usable_password: true,
+      password,
+    };
+    users.push(user);
+    return user;
+  },
+
+  signIn(user: MockUser) {
+    sessionUserId = user.id;
+    persistSession(user.id);
+  },
+
+  signOut() {
+    sessionUserId = null;
+    persistSession(null);
   },
 
   getLists(): TodoListResponse[] {
-    return lists;
+    return mine();
   },
 
   findList(listId: string): TodoListResponse | undefined {
-    return lists.find((list) => list.id === listId);
+    return mine().find((list) => list.id === listId);
   },
 
   findTodo(todoId: string): TodoResponse | undefined {
-    return lists.flatMap((list) => list.todos).find((todo) => todo.id === todoId);
+    return mine()
+      .flatMap((list) => list.todos)
+      .find((todo) => todo.id === todoId);
   },
 
   addList(name: string): TodoListResponse {
@@ -94,7 +238,7 @@ export const db = {
       created_at: timestamp,
       updated_at: timestamp,
     };
-    lists.push(list);
+    mine().push(list);
     return list;
   },
 
@@ -117,7 +261,10 @@ export const db = {
   },
 
   deleteList(list: TodoListResponse) {
-    lists = lists.filter((candidate) => candidate !== list);
+    listsByUser.set(
+      sessionUserId!,
+      mine().filter((candidate) => candidate !== list),
+    );
   },
 
   updateTodo(
@@ -129,6 +276,6 @@ export const db = {
   },
 
   deleteTodo(todo: TodoResponse) {
-    for (const list of lists) list.todos = list.todos.filter((candidate) => candidate !== todo);
+    for (const list of mine()) list.todos = list.todos.filter((candidate) => candidate !== todo);
   },
 };

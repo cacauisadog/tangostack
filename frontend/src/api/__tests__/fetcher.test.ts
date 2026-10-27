@@ -101,3 +101,24 @@ test("throws a clear ApiError when the server answers with HTML (e.g. the mock w
   expect((error as ApiError).message).toMatch(/MSW worker/);
   expect((error as ApiError).message).not.toMatch(/Unexpected token/);
 });
+
+test("sends the CSRF cookie as X-CSRFToken on unsafe methods only", async () => {
+  document.cookie = "csrftoken=abc123";
+  const seen: Array<string | null> = [];
+  server.use(
+    http.get("*/api/ping", ({ request }) => {
+      seen.push(request.headers.get("x-csrftoken"));
+      return HttpResponse.json({});
+    }),
+    http.post("*/api/ping", ({ request }) => {
+      seen.push(request.headers.get("x-csrftoken"));
+      return HttpResponse.json({});
+    }),
+  );
+
+  await customFetch("/api/ping");
+  await customFetch("/api/ping", { method: "POST", body: "{}" });
+  document.cookie = "csrftoken=; max-age=0";
+
+  expect(seen).toEqual([null, "abc123"]);
+});
