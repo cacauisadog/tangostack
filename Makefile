@@ -3,7 +3,7 @@ FE = cd frontend && pnpm
 
 .DEFAULT_GOAL := help
 
-.PHONY: help db-up db-down proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
+.PHONY: help db-up db-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
@@ -17,6 +17,28 @@ db-up: ## Start PostgreSQL
 
 db-down: ## Stop PostgreSQL
 	docker compose down
+
+up: ## Start everything in containers: postgres, backend, frontend (not the proxy)
+	docker compose up -d postgres backend frontend
+
+down: ## Stop and remove the containers (data in dkdata/ is kept)
+	docker compose down
+
+build: ## Build the dev images of the backend and frontend
+	docker compose build backend frontend
+
+build-prod: ## Build the production images (tangostack-backend, tangostack-frontend)
+	docker build --target prod -t tangostack-backend backend
+	docker build --target prod -t tangostack-frontend frontend
+
+logs: ## Follow the backend and frontend container logs
+	docker compose logs -f backend frontend
+
+bash: ## Bash inside the backend container
+	docker compose exec backend bash
+
+shell_plus: ## Django shell_plus inside the backend container
+	docker compose exec backend python manage.py shell_plus
 
 proxy-up: ## Start the Caddy dev proxy (https://dev.tangostack.com)
 	docker compose up -d caddy

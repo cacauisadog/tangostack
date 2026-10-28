@@ -11,6 +11,49 @@ services:
       - "5432:5432"
     volumes:
       - ./dkdata/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tangostack"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # backend and frontend are the `dev` targets of their Dockerfiles: source
+  # bind-mounted for live reload, same ports as running them on the host (so
+  # Caddy, which reaches the host, works either way; run one or the other).
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    image: tangostack-backend:dev
+    container_name: tangostack__backend
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/tangostack
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./api:/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    image: tangostack-frontend:dev
+    container_name: tangostack__frontend
+    # real backend through Caddy, like `make fe-dev-api`; mocks: VITE_API_MOCKING=true make up
+    environment:
+      VITE_API_MOCKING: ${VITE_API_MOCKING:-false}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      # the container's own (Linux) dependencies, not the host's
+      - frontend_node_modules:/app/node_modules
+      # pnpm links package skills here; keep the container's links off the host's
+      - frontend_claude_skills:/app/.claude/skills
 
   caddy:
     image: caddy:2.11.7
@@ -25,3 +68,7 @@ services:
       - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - ./dkdata/caddy/data:/data
       - ./dkdata/caddy/config:/config
+
+volumes:
+  frontend_node_modules:
+  frontend_claude_skills:

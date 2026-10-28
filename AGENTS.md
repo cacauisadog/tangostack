@@ -177,6 +177,31 @@ for mocks; the domain works for both).
 - The production proxy will be Coolify's Traefik or Dokku's nginx (TBD), so this
   setup mirrors routing, not the platform's proxy config.
 
+## Containers
+
+`backend/Dockerfile` and `frontend/Dockerfile` are multi-stage with two targets:
+`prod` (the default; what gets deployed) and `dev` (what compose runs).
+
+- **backend `prod`**: `python:3.14-slim` + venv (`/opt/venv`, outside `/app` so
+  bind mounts can't hide it) + code + `collectstatic`, gunicorn (gevent), non-root,
+  `DEBUG=false` (settings refuse to start without a real `SECRET_KEY`). It does
+  **not** migrate on start: run `manage.py migrate` as a separate step/release
+  command. No static file server yet: Django serves none with `DEBUG=false`,
+  so the admin needs the proxy to serve `STATIC_ROOT` or WhiteNoise (undecided).
+- **frontend `prod`**: only Nitro's `.output` on plain alpine + the node binary.
+  `VITE_*` values are build args (compiled into the client bundle).
+- **`dev`** (docker-compose.yaml): source bind-mounted (live reload), dev deps,
+  `runserver` / `vite dev`. Same ports (8000/3000) as running on the host, so Caddy
+  works either way; run one or the other. `DATABASE_URL` points at the `postgres`
+  service. The frontend keeps its own `node_modules` (and pnpm's `.claude/skills`)
+  in named volumes, re-synced at start with `pnpm install`.
+- Python deps stay in `pyproject.toml`/`uv.lock` only (`uv sync --frozen`); pnpm in
+  the image is pinned to `packageManager` (`PNPM_VERSION` build arg).
+- `make up` / `down` / `build` / `build-prod` / `logs` / `bash` / `shell_plus`.
+  The other `make` targets (`run`, `migrate`, `test`, ...) still run on the host.
+- `backend/.env` is bind-mounted into the dev container and excluded from images
+  (`.dockerignore`): production config comes from env vars.
+
 ## Commands (run from the repository root)
 
 - `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json` and copy allauth's spec to `api/allauth/`

@@ -1,0 +1,14 @@
+# Keep the build context (and the image) to the source only.
+.venv
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+db.sqlite3
+staticfiles
+.git
