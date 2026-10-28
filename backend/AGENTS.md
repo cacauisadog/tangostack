@@ -33,7 +33,8 @@ owned (`TodoList.owner`) and every query is scoped to `request.user`; another
 user's rows are 404. The exported OpenAPI schema is committed as
 `openapi/openapi.json` at the repository root, next to a copy of allauth's shipped
 spec in `openapi/allauth/` (`make api-export` writes both; tests fail when stale).
-Social login is not set up yet.
+Google login (allauth's redirect flow) is configured and only active when
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set.
 
 ## Stack and Dependencies
 
@@ -73,10 +74,12 @@ backend/
 ├── .python-version
 ├── scripts/
 │   └── startapp.py           # used by `make startapp`
+├── Dockerfile                # prod and dev targets (see the root AGENTS.md)
 └── tangostack/               # Django project package (no config/ dir)
     ├── settings.py           # single settings module
     ├── api.py                # NinjaAPI instance; add each app's router here
     ├── urls.py
+    ├── conftest.py           # shared fixtures: user, other_user, api_client
     ├── asgi.py
     ├── wsgi.py
     └── apps/
@@ -85,15 +88,16 @@ backend/
         │   ├── schemas.py    # Ninja request/response schemas
         │   ├── api.py        # Ninja router (list/create/update endpoints)
         │   ├── migrations/   # 0001 collation, 0002 to-do models
-        │   └── tests/        # test_models.py, test_api.py, test_openapi.py
+        │   └── tests/        # test_models/api/admin/ownership/openapi.py
         └── accounts/         # custom user model
             ├── models.py     # CustomUser
             ├── managers.py   # CustomUserManager
+            ├── openapi.py    # locates allauth's shipped OpenAPI spec
             ├── forms.py
             ├── admin.py
             ├── views.py
             ├── migrations/0001_initial.py
-            └── tests/test_customuser.py
+            └── tests/        # test_customuser, test_auth_flow, test_social_login
 ```
 
 Apps are registered as `tangostack.apps.<name>`. Follow this layout when
@@ -185,12 +189,13 @@ its `tests/` package or `tests.py`.
   `docker-compose.yaml`).
 - Never hardcode secrets, credentials, production URLs, or
   environment-specific database details. Note that `SECRET_KEY`,
-  `DEBUG`, and `ALLOWED_HOSTS` are currently hardcoded dev defaults in
-  `settings.py`; move them to environment variables before any
-  non-local deployment.
+  `DEBUG`, and `ALLOWED_HOSTS` come from env vars; the `SECRET_KEY` default
+  is an insecure dev value, and settings refuse to start with it when
+  `DEBUG` is off.
 - Never commit `.env` files or credentials (`.env` is git-ignored).
-  There is no `.env.example` yet; create one when adding the first
-  required variable, using safe placeholder values only.
+  `.env.example` lists the variables with safe placeholder values; keep
+  it in sync when adding one. `python-decouple` reads only `.env`, not
+  `.env.local`.
 - There is a single `settings.py`; there are no separate dev, test, or
   production settings modules. Introduce environment separation
   deliberately rather than ad hoc.
@@ -239,11 +244,11 @@ its `tests/` package or `tests.py`.
 - The admin (`CustomUserAdmin`) searches via an annotated deterministic
   collation (`und-x-icu`) because non-deterministic collations do not
   support `LIKE`/`icontains`; keep that when editing the admin.
-- The project plans to use Django Allauth with headless and
-  social-account functionality. It is installed but not yet configured
-  (not in `INSTALLED_APPS`, no auth backends or URLs). Follow the
-  Allauth configuration once it exists, and do not implement a
-  parallel authentication system.
+- Authentication is django-allauth (headless, browser client) with the
+  Google provider, configured in `settings.py` ("AUTHENTICATION") and
+  mounted in `urls.py`. Do not implement a parallel authentication
+  system. Social linking by email stays off while signup doesn't verify
+  emails.
 - Before changing authentication, session, cookie, CSRF, social-login,
   or account behavior, inspect the current settings and existing
   integration tests.
@@ -295,7 +300,7 @@ Use pytest as the backend test runner, with pytest-django for Django
 integration. Configuration lives in `pyproject.toml`:
 `DJANGO_SETTINGS_MODULE = tangostack.settings`, `testpaths = ["tangostack"]`,
 files named `tests.py` or `test_*.py`, and
-`addopts = "--reuse-db --durations=1"`.
+`--reuse-db`, durations and coverage `addopts`.
 
 - Tests need the PostgreSQL container running
   (`docker compose up -d postgres` from the repo root).
