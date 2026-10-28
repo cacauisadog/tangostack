@@ -15,7 +15,7 @@ API**, and the frontend then conforms to it.
    Django Ninja schemas and endpoints with their tests. Follow Ninja's
    conventions (see "API conventions").
 3. **Export the contract.** `make api-export` writes Ninja's OpenAPI schema to
-   `api/openapi.json` and copies allauth's shipped spec to `api/allauth/`
+   `openapi/openapi.json` and copies allauth's shipped spec to `openapi/allauth/`
    (both committed; backend tests fail if they are stale).
 4. **Regenerate the client.** `make fe-api-generate` (or `make api-generate`
    for steps 3 and 4 together) runs Orval over both specs into
@@ -29,13 +29,13 @@ API**, and the frontend then conforms to it.
 
 ### Contract ownership
 
-- The backend owns the contract. `api/openapi.json` is generated from Django
+- The backend owns the contract. `openapi/openapi.json` is generated from Django
   Ninja; never hand-edit it, and never keep a hand-written copy of it.
 - If the frontend needs a different shape, change the Ninja schema and
   re-export. Do not bend the frontend away from what the spec says.
 - There are two contracts. Everything under `/api/` is ours (Ninja). Auth lives
   under `/_allauth/browser/v1/auth/` and is django-allauth's headless API: its
-  spec is shipped with allauth, we only copy it (`api/allauth/`, a test compares
+  spec is shipped with allauth, we only copy it (`openapi/allauth/`, a test compares
   it with the installed file, so an allauth upgrade shows up as a diff). Orval's
   `auth` entry keeps `login`, `signup`, `getSession` (GET) and `logout` (DELETE
   session), fixes `{client}` to `browser` and drops the rest (see
@@ -101,8 +101,8 @@ API**, and the frontend then conforms to it.
 
 | Path                                     | Purpose                                                            |
 | ---------------------------------------- | ------------------------------------------------------------------ |
-| `api/openapi.json`                       | The contract, exported from Django Ninja (`make api-export`)       |
-| `api/allauth/`                           | Copy of allauth's shipped spec (`openapi.yaml`, `description.md`)  |
+| `openapi/openapi.json`                   | The contract, exported from Django Ninja (`make api-export`)       |
+| `openapi/allauth/`                       | Copy of allauth's shipped spec (`openapi.yaml`, `description.md`)  |
 | `frontend/orval.config.ts`               | Orval config: `tangostack` (Ninja) and `auth` (allauth) entries    |
 | `frontend/src/api/http.ts`               | Shared fetch core: CSRF header, mock-worker retry, `HttpError`     |
 | `frontend/src/api/fetcher.ts`            | `customFetch` for generated code; throws `ApiError` (`detail`)     |
@@ -204,8 +204,8 @@ for mocks; the domain works for both).
 
 ## Commands (run from the repository root)
 
-- `make api-export`: export Ninja's OpenAPI schema to `api/openapi.json` and copy allauth's spec to `api/allauth/`
-- `make fe-api-generate`: regenerate both frontend clients from the specs in `api/`
+- `make api-export`: export Ninja's OpenAPI schema to `openapi/openapi.json` and copy allauth's spec to `openapi/allauth/`
+- `make fe-api-generate`: regenerate both frontend clients from the specs in `openapi/`
 - `make api-generate`: both of the above
 - `make fe-dev`: dev server (mocks on by default)
 - `make fe-dev-api`: dev server against the real backend (mocks off)

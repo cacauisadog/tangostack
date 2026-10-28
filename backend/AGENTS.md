@@ -31,8 +31,8 @@ it at `/api/`. Authentication is django-allauth's headless **browser** client
 username, no email verification (`settings.py`, "AUTHENTICATION"). Lists are
 owned (`TodoList.owner`) and every query is scoped to `request.user`; another
 user's rows are 404. The exported OpenAPI schema is committed as
-`api/openapi.json` at the repository root, next to a copy of allauth's shipped
-spec in `api/allauth/` (`make api-export` writes both; tests fail when stale).
+`openapi/openapi.json` at the repository root, next to a copy of allauth's shipped
+spec in `openapi/allauth/` (`make api-export` writes both; tests fail when stale).
 Social login is not set up yet.
 
 ## Stack and Dependencies
@@ -267,7 +267,7 @@ When changing an endpoint or schema:
    (including `404` and `422`), and keep operation IDs stable unless a
    deliberate rename is required.
 2. Run `make api-export` from the repository root. It writes the schema to
-   `api/openapi.json`, which is committed. `test_openapi.py` fails when that
+   `openapi/openapi.json`, which is committed. `test_openapi.py` fails when that
    file is stale.
 3. Run `make fe-api-generate` (or `make api-generate` for steps 2 and 3) to
    regenerate the Orval client in `frontend/src/api/generated/` (committed).
@@ -275,7 +275,7 @@ When changing an endpoint or schema:
    run `make fe-check`.
 5. Run the backend tests.
 
-Do not hand-edit `api/openapi.json` or the generated TypeScript client. Do not
+Do not hand-edit `openapi/openapi.json` or the generated TypeScript client. Do not
 maintain a separate handwritten copy of API types in the backend and frontend.
 If a schema change is intentionally breaking, identify the compatibility impact
 and coordinate the change with the frontend.
@@ -385,7 +385,7 @@ prefer it from the repo root:
 | `make shell` / `make dbshell`             | `manage.py shell` / `dbshell`                |
 | `make superuser`                          | `manage.py createsuperuser`                  |
 | `make check`                              | `manage.py check`                            |
-| `make api-export`                         | export the OpenAPI schema to `api/openapi.json` |
+| `make api-export`                         | export the OpenAPI schema to `openapi/openapi.json` |
 | `make api-generate`                       | `api-export`, then regenerate the frontend client |
 | `make test [args="-k name"]`              | `uv run pytest`                              |
 | `make test-fresh [args=...]`              | `uv run pytest --create-db`                  |

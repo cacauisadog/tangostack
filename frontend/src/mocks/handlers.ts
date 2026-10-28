@@ -55,7 +55,7 @@ function requiredString(field: string, value: unknown, maxLength: number) {
   return { value: trimmed };
 }
 
-/** One handler per operation in the backend's OpenAPI spec (api/openapi.json). */
+/** One handler per operation in the backend's OpenAPI spec (openapi/openapi.json). */
 export const handlers = [
   ...authHandlers,
 

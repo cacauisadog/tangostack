@@ -14,7 +14,7 @@ const DROPPED_PARAMETER = /^#\/components\/parameters\/(Client|SessionToken)$/;
 
 export default defineConfig({
   tangostack: {
-    input: "../api/openapi.json",
+    input: "../openapi/openapi.json",
     output: {
       workspace: "src/api/generated",
       target: "endpoints.ts",
@@ -33,7 +33,7 @@ export default defineConfig({
   },
   auth: {
     input: {
-      target: "../api/allauth/openapi.yaml",
+      target: "../openapi/allauth/openapi.yaml",
       parserOptions: { externalRefs: { allow: ["./description.md"] } },
       unsafeDisableValidation: true, // description.md is an external $ref that orval cannot load
       filters: { tags: ["auth"] },

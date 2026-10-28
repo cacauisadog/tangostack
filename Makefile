@@ -137,12 +137,12 @@ fe-format-check: ## Fail if the frontend is not formatted
 fe-typecheck: ## Type-check the frontend
 	$(FE) typecheck
 
-fe-api-generate: ## Regenerate the frontend API client from api/openapi.json
+fe-api-generate: ## Regenerate the frontend API client from openapi/openapi.json
 	$(FE) api:generate
 
-api-export: ## Export the OpenAPI specs: Ninja's (api/openapi.json) and a copy of allauth's (api/allauth/)
-	mkdir -p api && $(MANAGE) export_openapi_schema --api tangostack.api.api --output ../api/openapi.json --indent 2 --sorted
-	mkdir -p api/allauth && cd backend && uv run python -c "from tangostack.apps.accounts.openapi import ALLAUTH_SPEC_DIR; print(ALLAUTH_SPEC_DIR)" | xargs -I{} cp {}/openapi.yaml {}/description.md ../api/allauth/
+api-export: ## Export the OpenAPI specs: Ninja's (openapi/openapi.json) and a copy of allauth's (openapi/allauth/)
+	mkdir -p openapi && $(MANAGE) export_openapi_schema --api tangostack.api.api --output ../openapi/openapi.json --indent 2 --sorted
+	mkdir -p openapi/allauth && cd backend && uv run python -c "from tangostack.apps.accounts.openapi import ALLAUTH_SPEC_DIR; print(ALLAUTH_SPEC_DIR)" | xargs -I{} cp {}/openapi.yaml {}/description.md ../openapi/allauth/
 
 api-generate: api-export fe-api-generate ## Export the OpenAPI schema, then regenerate the frontend client
 
