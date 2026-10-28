@@ -19,7 +19,9 @@ def test_google_is_offered_only_when_its_credentials_are_set(client):
     with override_settings(SOCIALACCOUNT_PROVIDERS=GOOGLE):
         assert provider_ids(client) == ["google"]
 
-    flows = client.get(f"{BASE}/session").json()["data"]["flows"]
+    # whatever the environment has in .env, no credentials means no provider
+    with override_settings(SOCIALACCOUNT_PROVIDERS={"google": {}}):
+        flows = client.get(f"{BASE}/session").json()["data"]["flows"]
     assert "provider_redirect" not in {f["id"] for f in flows}
 
 
