@@ -1,10 +1,10 @@
-# Local dev proxy: https://dev.tangostack.com -> Django (API, admin) and Vite (app).
+# Local dev proxy: https://dev.tangostack.com -> Django (API, admin, silk) and Vite (app).
 # Both run on the host; requires `dev.tangostack.com` in /etc/hosts -> 127.0.0.1.
 dev.tangostack.com {
 	# Certificate from Caddy's local CA; trust it once with `make proxy-trust`.
 	tls internal
 
-	@django path /api/* /_allauth/* /accounts/* /admin/* /static/*
+	@django path /api/* /_allauth/* /accounts/* /admin/* /silk/* /static/*
 	handle @django {
 		reverse_proxy host.docker.internal:8000
 	}

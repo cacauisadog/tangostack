@@ -197,6 +197,10 @@ the `EMAIL_*` lines from `backend/.env.example` in `backend/.env`; without them
 development prints emails to the console. The backend container (`make up`) is
 already wired to it. Nothing is ever delivered.
 
+- **django-silk** (request/SQL profiler) is on in dev at `/silk/` (no login; routed
+  to Django by the Caddyfile). Dev dependency, so never in the prod image;
+  `SILK_ENABLED=false` turns it off (the e2e backend does), and it refuses to
+  start with `DEBUG` off. `make silk-clear` resets it.
 - Vite allows the host and sends HMR over `wss` on 443 (`vite.config.ts`).
 - Django reads `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `BEHIND_PROXY`, `SECRET_KEY`,
   `DEBUG` from env (`backend/.env`, git-ignored).

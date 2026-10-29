@@ -4,7 +4,7 @@ FE = cd frontend && pnpm
 .DEFAULT_GOAL := help
 
 .PHONY: help db-up db-down mailpit up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
-	startapp shell dbshell superuser check test test-fresh coverage-report lint format \
+	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
 
@@ -77,6 +77,9 @@ dbshell: ## Open the database shell
 superuser: ## Create a superuser
 	$(MANAGE) createsuperuser
 
+silk-clear: ## Delete everything django-silk recorded (dev)
+	$(MANAGE) silk_clear_request_log
+
 check: ## Run Django system checks
 	$(MANAGE) check
 
@@ -118,7 +121,7 @@ fe-e2e-report: ## Open the last Playwright HTML report
 
 # e2e runs against its own database and ports so it never touches dev data.
 E2E_DB = tangostack_e2e
-E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=localhost EMAIL_PORT=1026 EMAIL_USE_TLS=false
+E2E_ENV = SILK_ENABLED=false DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=localhost EMAIL_PORT=1026 EMAIL_USE_TLS=false
 
 e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001 (email goes to the mailpit-e2e container)
 	@docker compose up -d --wait mailpit-e2e

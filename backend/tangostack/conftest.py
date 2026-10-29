@@ -12,6 +12,21 @@ def _clear_cache():
     cache.clear()
 
 
+SILK = "silk.middleware.SilkyMiddleware"
+
+
+@pytest.fixture(autouse=True)
+def _silk_off(settings):
+    """silk (dev only) writes to the database on every request, which would skew
+    query counts. Tests that want it ask for `silk_on`."""
+    settings.MIDDLEWARE = [m for m in settings.MIDDLEWARE if m != SILK]
+
+
+@pytest.fixture
+def silk_on(settings):
+    settings.MIDDLEWARE = [*settings.MIDDLEWARE, SILK]
+
+
 def create_verified_user(email):
     """A user who can log in: email verification is mandatory."""
     user = get_user_model().objects.create_user(email, "a-good-password")

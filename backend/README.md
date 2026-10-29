@@ -106,6 +106,7 @@ Settings come from environment variables, read through `python-decouple` from
 | `EMAIL_USERNAME` / `EMAIL_PASSWORD`| empty                                           | The provider's SMTP credentials                      |
 | `EMAIL_USE_TLS` / `EMAIL_USE_SSL`  | `true` / `false`                                | STARTTLS or implicit TLS; never both                 |
 | `DEFAULT_FROM_EMAIL`               | `Tangostack <noreply@localhost>`                | **Set in production** to a verified sender address   |
+| `SILK_ENABLED`                     | same as `DEBUG`                                 | django-silk profiler at `/silk/`; refuses to start with `DEBUG` off |
 
 ## Conventions and rules
 
@@ -207,6 +208,19 @@ credentials and `DEFAULT_FROM_EMAIL` to an address on a domain verified with it
   the cache, so `conftest.py` clears it between tests.
 - **Superusers** made with `createsuperuser` get a verified address, otherwise
   they could not log in through the app.
+
+## Profiling (django-silk)
+
+In development, [django-silk](https://github.com/jazzband/django-silk) records
+every request and its SQL queries. Open `/silk/` (e.g.
+<https://dev.tangostack.com/silk/>); no login is needed. It is a dev-only dependency, so it is not in the production
+image, and `SILK_ENABLED` cannot be on while `DEBUG` is off. The e2e backend turns it off.
+
+- Keeps the last 1000 requests; `make silk-clear` empties them.
+- `SILKY_PYTHON_PROFILER` (cProfile per request) is off because it slows every
+  request: flip it in `settings.py` when you need a profile.
+- Tests strip the middleware (`conftest.py`) so its writes don't skew query counts;
+  a test that wants it asks for the `silk_on` fixture.
 
 ## Testing
 

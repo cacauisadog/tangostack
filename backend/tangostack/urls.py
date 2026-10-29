@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
@@ -26,3 +27,6 @@ urlpatterns = [
     path("_allauth/", include("allauth.headless.urls")),
     path("api/", api.urls),
 ]
+
+if settings.SILK_ENABLED:
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]

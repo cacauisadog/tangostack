@@ -35,6 +35,12 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 if not DEBUG and SECRET_KEY.startswith("django-insecure-"):
     raise ImproperlyConfigured("Set SECRET_KEY when DEBUG is off.")
 
+# django-silk (request/SQL profiler at /silk/) is a dev dependency: on by default
+# in development, off otherwise. See the SILK section below.
+SILK_ENABLED = config("SILK_ENABLED", default=DEBUG, cast=bool)
+if SILK_ENABLED and not DEBUG:
+    raise ImproperlyConfigured("SILK_ENABLED needs DEBUG: silk exposes request data.")
+
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 
@@ -265,3 +271,26 @@ STATIC_URL = "static/"
 # `collectstatic` target: the production image bakes it in, a proxy or
 # WhiteNoise serves it.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+
+# ==============================================================================
+# SILK (development only)
+# https://github.com/jazzband/django-silk
+# Records every request and its SQL queries; browse them at /silk/ (no login: dev only).
+# A dev dependency, so it is absent from the production image: only DEBUG may
+# enable it (see SILK_ENABLED above). Set SILK_ENABLED=false to turn it off, e.g.
+# for the e2e backend. `make silk-clear` empties the recorded data.
+# ==============================================================================
+if SILK_ENABLED:
+    INSTALLED_APPS += ["silk"]
+    MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
+
+    # No login or staff check: silk only runs with DEBUG on (see SILK_ENABLED).
+    SILKY_AUTHENTICATION = False
+    SILKY_AUTHORISATION = False
+    # Keep the table small: the oldest requests are deleted past this count.
+    SILKY_MAX_RECORDED_REQUESTS = 1000
+    # Show how long silk itself adds to each request.
+    SILKY_META = True
+    # The cProfile flame graph slows every request down: flip to True when needed.
+    SILKY_PYTHON_PROFILER = False
