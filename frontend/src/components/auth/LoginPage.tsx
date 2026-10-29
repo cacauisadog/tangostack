@@ -12,7 +12,7 @@ export default function LoginPage() {
     <AuthGate require="guest">
       <AuthLayout>
         {isVerificationPending(login.error) ? (
-          <CheckEmail email={email} reason="login" />
+          <CheckEmail email={email} reason="login" onBack={login.reset} />
         ) : (
           <AuthForm
             mode="login"

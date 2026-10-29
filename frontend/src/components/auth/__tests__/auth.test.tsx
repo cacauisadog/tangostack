@@ -93,6 +93,11 @@ test("signing up asks to check the inbox; the emailed link confirms the address,
   await logIn(user, "carla@example.com", "a-long-password");
   expect(await screen.findByText(/isn't confirmed yet/i)).toBeInTheDocument();
 
+  // already on /login, so "Back to log in" has to bring the form back itself
+  await user.click(screen.getByRole("button", { name: "Back to log in" }));
+  expect(await screen.findByText("Log in", cardTitle)).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe("/login");
+
   // the link in the email (mock keys are predictable)
   await router.navigate({
     to: "/auth/verify-email/$key",
