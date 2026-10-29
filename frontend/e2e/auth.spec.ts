@@ -1,5 +1,5 @@
 import type { TodoListResponse } from "../src/api/generated/model";
-import { csrfApi, expect, PASSWORD, signUp, test } from "./fixtures";
+import { csrfApi, emailedLink, expect, PASSWORD, signUp, test, uniqueEmail } from "./fixtures";
 
 test("an anonymous visitor is sent to the login page", async ({ page }) => {
   await page.goto("/");
@@ -8,49 +8,100 @@ test("an anonymous visitor is sent to the login page", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
 });
 
-test("signs up, logs out, and logs back in", async ({ page }) => {
+test("signs up, confirms the address from the emailed link, then logs in and out", async ({
+  page,
+}) => {
+  const email = uniqueEmail("carla");
   await page.goto("/signup");
-  await page.getByLabel("Email").fill("carla@email.com");
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign up" }).click();
+  await expect(page.getByText("Check your email", { exact: true })).toBeVisible();
 
-  await expect(page).toHaveURL("/");
-  await expect(page.getByText("carla@email.com")).toBeVisible();
-
-  await page.getByRole("button", { name: "Log out" }).click();
+  // not signed in until the link is opened
+  await page.goto("/");
   await expect(page).toHaveURL(/\/login$/);
 
-  await page.getByLabel("Email").fill("carla@email.com");
+  await page.goto(await emailedLink(email, "verify-email"));
+  await expect(page.getByText(`Confirm ${email}`)).toBeVisible();
+  await page.getByRole("button", { name: "Confirm email" }).click();
+  await expect(page.getByText("Email confirmed", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Log in" }).click();
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL("/");
+  await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText("No lists yet")).toBeVisible();
+
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("keeps the session across a reload", async ({ page }) => {
-  await page.goto("/signup");
-  await page.getByLabel("Email").fill("carla@email.com");
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign up" }).click();
-  await expect(page).toHaveURL("/");
+  const email = uniqueEmail("carla");
+  await signUp(page.request, email);
+  await page.goto("/");
+  await expect(page.getByText(email)).toBeVisible();
 
   await page.reload();
 
-  await expect(page.getByText("carla@email.com")).toBeVisible();
+  await expect(page.getByText(email)).toBeVisible();
 });
 
-test("shows the server's errors on the form", async ({ page }) => {
-  await signUp(page.request, "carla@email.com");
+test("resets a forgotten password from the emailed link", async ({ page }) => {
+  const email = uniqueEmail("carla");
+  await signUp(page.request, email);
   await page.context().clearCookies();
 
   await page.goto("/login");
-  await page.getByLabel("Email").fill("carla@email.com");
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  // fill only once the new page is there, not the login form that is still unmounting
+  await expect(page.getByText("Forgot your password?")).toBeVisible();
+  await page.getByLabel("Email").fill(email);
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByText(/we sent a link to reset/i)).toBeVisible();
+
+  await page.goto(await emailedLink(email, "reset-password"));
+  await page.getByLabel("New password").fill("12345");
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page.getByText(/too short/i)).toBeVisible();
+
+  await page.getByLabel("New password").fill("a-brand-new-password");
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page.getByText("Password changed", { exact: true })).toBeVisible();
+
+  // the old password no longer works, the new one does
+  await page.getByRole("button", { name: "Log in" }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.getByText(/email address and\/or password/i)).toBeVisible();
+  await page.getByLabel("Password").fill("a-brand-new-password");
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page).toHaveURL("/");
+});
+
+test("an unusable confirmation link says so", async ({ page }) => {
+  await page.goto("/auth/verify-email/not-a-real-key");
+
+  await expect(page.getByText("Link not valid", { exact: true })).toBeVisible();
+});
+
+test("shows the server's errors on the form", async ({ page }) => {
+  const email = uniqueEmail("carla");
+  await signUp(page.request, email);
+  await page.context().clearCookies();
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("wrong-password");
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByText(/email address and\/or password/i)).toBeVisible();
 
   await page.goto("/signup");
-  await page.getByLabel("Email").fill("carla@email.com");
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("12345");
   await page.getByRole("button", { name: "Sign up" }).click();
   await expect(page.getByText(/too short/i)).toBeVisible();
@@ -58,13 +109,13 @@ test("shows the server's errors on the form", async ({ page }) => {
 });
 
 test("users only see their own lists", async ({ page, browser }) => {
-  await signUp(page.request, "amanda@email.com");
+  await signUp(page.request, uniqueEmail("amanda"));
   const amanda = csrfApi(page.request);
   await amanda.post("/api/lists", { data: { name: "Amanda's list" } });
 
   const bruno = await browser.newContext();
   const brunoPage = await bruno.newPage();
-  await signUp(brunoPage.request, "bruno@email.com");
+  await signUp(brunoPage.request, uniqueEmail("bruno"));
 
   await page.goto("/");
   await expect(page.getByText("Amanda's list")).toBeVisible();

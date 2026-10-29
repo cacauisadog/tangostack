@@ -1,0 +1,15 @@
+{% extends "account/email/base_message.html" %}
+
+{% block title %}Confirm your email address{% endblock title %}
+
+{% block content %}
+<p style="margin:0 0 16px;">Confirm your email address to finish setting up your Tangostack account.</p>
+<p style="margin:0 0 24px;">
+  <a href="{{ activate_url }}" style="display:inline-block;padding:12px 20px;border-radius:6px;background-color:#18181b;color:#ffffff;font-weight:600;text-decoration:none;">Confirm email address</a>
+</p>
+<p style="margin:0 0 8px;font-size:14px;color:#52525b;">Or paste this link into your browser:</p>
+<p style="margin:0 0 24px;font-size:14px;word-break:break-all;"><a href="{{ activate_url }}" style="color:#18181b;">{{ activate_url }}</a></p>
+<p style="margin:0;font-size:14px;color:#52525b;">If you didn't create a Tangostack account, you can ignore this email.</p>
+{% endblock content %}
+
+{% block footer %}This link expires in a few days. Log in again to get a new one.{% endblock footer %}

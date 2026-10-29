@@ -75,23 +75,93 @@ test("shows an inline error for wrong credentials and stays on the page", async 
   expect(router.state.location.pathname).toBe("/login");
 });
 
-test("signs up, lands on an empty app, and rejects a taken email with Django's message", async () => {
+test("signing up asks to check the inbox; the emailed link confirms the address, then login works", async () => {
   db.reset();
   const user = userEvent.setup();
   const router = renderApp("/signup");
 
+  await user.type(await screen.findByLabelText("Email"), "carla@example.com");
+  await user.type(screen.getByLabelText("Password"), "a-long-password");
+  await user.click(screen.getByRole("button", { name: "Sign up" }));
+
+  expect(await screen.findByText("Check your email", cardTitle)).toBeInTheDocument();
+  expect(screen.getByText(/carla@example.com/)).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe("/signup");
+
+  // not confirmed yet: the login asks for the link again instead of signing in
+  await router.navigate({ to: "/login" });
+  await logIn(user, "carla@example.com", "a-long-password");
+  expect(await screen.findByText(/isn't confirmed yet/i)).toBeInTheDocument();
+
+  // the link in the email (mock keys are predictable)
+  await router.navigate({
+    to: "/auth/verify-email/$key",
+    params: { key: "verify-carla@example.com" },
+  });
+  expect(await screen.findByText(/Confirm carla@example.com/)).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Confirm email" }));
+  expect(await screen.findByText("Email confirmed", cardTitle)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Log in" }));
+  await logIn(user, "carla@example.com", "a-long-password");
+  expect(await screen.findByText(/no lists yet/i)).toBeInTheDocument();
+  expect(screen.getByText("carla@example.com")).toBeInTheDocument();
+});
+
+test("signing up with a taken email looks the same as with a new one", async () => {
+  db.reset();
+  const user = userEvent.setup();
+  renderApp("/signup");
+
   await user.type(await screen.findByLabelText("Email"), "amanda@email.com");
   await user.type(screen.getByLabelText("Password"), "a-long-password");
   await user.click(screen.getByRole("button", { name: "Sign up" }));
-  expect(await screen.findByText(/already registered/i)).toBeInTheDocument();
 
-  await user.clear(screen.getByLabelText("Email"));
-  await user.type(screen.getByLabelText("Email"), "carla@example.com");
-  await user.click(screen.getByRole("button", { name: "Sign up" }));
+  expect(await screen.findByText("Check your email", cardTitle)).toBeInTheDocument();
+});
 
-  expect(await screen.findByText(/no lists yet/i)).toBeInTheDocument();
-  expect(screen.getByText("carla@example.com")).toBeInTheDocument();
-  expect(router.state.location.pathname).toBe("/");
+test("an invalid or expired confirmation link says so", async () => {
+  db.reset();
+  renderApp("/auth/verify-email/not-a-real-key");
+
+  expect(await screen.findByText("Link not valid", cardTitle)).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(/invalid or has expired/i);
+});
+
+test("resets a forgotten password from the emailed link", async () => {
+  db.reset();
+  const user = userEvent.setup();
+  const router = renderApp("/login");
+
+  await user.click(await screen.findByRole("link", { name: "Forgot password?" }));
+  await user.type(await screen.findByLabelText("Email"), "amanda@email.com");
+  await user.click(screen.getByRole("button", { name: "Send reset link" }));
+  expect(await screen.findByText(/we sent a link to reset/i)).toBeInTheDocument();
+
+  await router.navigate({
+    to: "/auth/reset-password/$key",
+    params: { key: "reset-amanda@email.com" },
+  });
+  await user.type(await screen.findByLabelText("New password"), "12345");
+  await user.click(screen.getByRole("button", { name: "Change password" }));
+  expect(await screen.findByText(/too short/i)).toBeInTheDocument();
+
+  await user.clear(screen.getByLabelText("New password"));
+  await user.type(screen.getByLabelText("New password"), "another-long-password");
+  await user.click(screen.getByRole("button", { name: "Change password" }));
+  expect(await screen.findByText("Password changed", cardTitle)).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Log in" }));
+  await logIn(user, "amanda@email.com", "another-long-password");
+  expect(await screen.findByText("Work", cardTitle)).toBeInTheDocument();
+});
+
+test("an invalid reset link offers a new one", async () => {
+  db.reset();
+  renderApp("/auth/reset-password/nope");
+
+  expect(await screen.findByText("Link not valid", cardTitle)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Send a new link" })).toBeInTheDocument();
 });
 
 test("shows Django's password validation messages on the password field", async () => {

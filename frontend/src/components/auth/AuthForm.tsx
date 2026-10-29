@@ -85,7 +85,17 @@ export default function AuthForm({ mode, onSubmit, isPending, error }: AuthFormP
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              {mode === "login" && (
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-sm text-muted-foreground underline underline-offset-4"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <Input
               id="password"
               name="password"

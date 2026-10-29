@@ -1,14 +1,19 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { AuthApiError } from "#/api/authFetcher";
 import { csrfToken } from "#/api/http";
 import {
+  getEmailVerification,
   getGetSessionQueryKey,
+  getPasswordReset,
   getSession,
+  resetPassword,
   useLogin as useGeneratedLogin,
   useLogout as useGeneratedLogout,
+  useRequestPasswordReset,
   useSignup as useGeneratedSignup,
+  verifyEmail,
 } from "#/api/generated-auth";
 import type { Flow, User } from "#/api/generated-auth";
 import { isMockingEnabled } from "#/mocks/enable";
@@ -38,6 +43,17 @@ function useStartSession() {
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== sessionKey[0] });
     queryClient.setQueryData(sessionKey, user);
   };
+}
+
+/**
+ * Email verification is mandatory: signing up, or logging in with an address that
+ * isn't confirmed yet, answers 401 with a pending `verify_email` flow (and sends
+ * the link). That isn't a failure, so the pages show "check your inbox" instead.
+ */
+export function isVerificationPending(error: unknown): boolean {
+  if (!(error instanceof AuthApiError) || error.status !== 401) return false;
+  const flows = (error.body as { data?: { flows?: Flow[] } }).data?.flows;
+  return Boolean(flows?.some((flow) => flow.id === "verify_email" && flow.is_pending));
 }
 
 export function useLogin() {
@@ -141,4 +157,82 @@ export function useRefreshSession() {
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== sessionKey[0] });
     await queryClient.refetchQueries({ queryKey: sessionKey });
   }, [queryClient]);
+}
+
+/** allauth takes these keys (from the emailed links) in headers, which the generated hooks omit. */
+const EMAIL_VERIFICATION_KEY_HEADER = "X-Email-Verification-Key";
+const PASSWORD_RESET_KEY_HEADER = "X-Password-Reset-Key";
+
+/** Whose address the emailed link confirms; an invalid or expired key is a 400 error. */
+export function useEmailVerification(key: string) {
+  return useQuery({
+    queryKey: ["auth", "email-verification", key],
+    queryFn: async () => {
+      const res = await getEmailVerification({ headers: { [EMAIL_VERIFICATION_KEY_HEADER]: key } });
+      if (res.status !== 200) throw new AuthApiError(res.status, res.data);
+      return res.data.data;
+    },
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Confirms the address. allauth answers 401 when that worked but nobody is signed
+ * in (the usual case), so that counts as success too.
+ */
+export function useConfirmEmail() {
+  const startSession = useStartSession();
+  return useMutation({
+    mutationFn: async (key: string) => {
+      try {
+        const res = await verifyEmail({ key });
+        return res.status === 200 ? res.data.data.user : null;
+      } catch (error) {
+        if (error instanceof AuthApiError && error.status === 401) return null;
+        throw error;
+      }
+    },
+    onSuccess: (user) => {
+      if (user) startSession(user);
+    },
+  });
+}
+
+/** Asks for a reset link. Always succeeds for a well-formed address, known or not. */
+export function useForgotPassword() {
+  return useRequestPasswordReset();
+}
+
+/** Validates the emailed reset key; an invalid or expired key is a 400 error. */
+export function usePasswordResetInfo(key: string) {
+  return useQuery({
+    queryKey: ["auth", "password-reset", key],
+    queryFn: async () => {
+      const res = await getPasswordReset({ headers: { [PASSWORD_RESET_KEY_HEADER]: key } });
+      if (res.status !== 200) throw new AuthApiError(res.status, res.data);
+      return res.data.data;
+    },
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Sets the new password. Like confirming, a 401 means it worked without signing anyone in. */
+export function useResetPassword() {
+  const startSession = useStartSession();
+  return useMutation({
+    mutationFn: async (variables: { key: string; password: string }) => {
+      try {
+        const res = await resetPassword(variables);
+        return res.status === 200 ? res.data.data.user : null;
+      } catch (error) {
+        if (error instanceof AuthApiError && error.status === 401) return null;
+        throw error;
+      }
+    },
+    onSuccess: (user) => {
+      if (user) startSession(user);
+    },
+  });
 }

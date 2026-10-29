@@ -17,6 +17,34 @@ services:
       timeout: 3s
       retries: 15
 
+  # Catches all outgoing email (SMTP :1025) and shows it at http://localhost:8025.
+  # Nothing is ever delivered. The e2e twin has its own ports so tests can empty
+  # their inbox without touching the dev one.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    container_name: tangostack__mailpit
+    environment:
+      # otherwise every connection waits ~8s for a reverse DNS lookup of the client
+      MP_SMTP_DISABLE_RDNS: "true"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck: &mailpit-healthcheck
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  mailpit-e2e:
+    image: axllent/mailpit:v1.32.0
+    container_name: tangostack__mailpit_e2e
+    environment:
+      MP_SMTP_DISABLE_RDNS: "true"
+    ports:
+      - "1026:1025"
+      - "8026:8025"
+    healthcheck: *mailpit-healthcheck
+
   # backend and frontend are the `dev` targets of their Dockerfiles: source
   # bind-mounted for live reload, same ports as running them on the host (so
   # Caddy, which reaches the host, works either way; run one or the other).
@@ -28,6 +56,10 @@ services:
     container_name: tangostack__backend
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/tangostack
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      EMAIL_USE_TLS: "false"
     ports:
       - "8000:8000"
     volumes:
@@ -35,6 +67,8 @@ services:
       - ./openapi:/openapi
     depends_on:
       postgres:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
 
   frontend:

@@ -1,0 +1,7 @@
+{% extends "account/email/base_message.txt" %}
+
+{% block content %}{% autoescape off %}Confirm your email address to finish setting up your Tangostack account:
+
+{{ activate_url }}
+
+If you didn't create a Tangostack account, you can ignore this email.{% endautoescape %}{% endblock content %}

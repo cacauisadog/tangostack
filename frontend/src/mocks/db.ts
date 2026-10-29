@@ -3,7 +3,7 @@ import type { User } from "#/api/generated-auth";
 import { env } from "#/env";
 
 /** Mock accounts. Both use the password `password`. */
-export type MockUser = User & { id: number; email: string; password: string };
+export type MockUser = User & { id: number; email: string; password: string; verified: boolean };
 
 export const seedUsers: MockUser[] = [
   {
@@ -12,6 +12,7 @@ export const seedUsers: MockUser[] = [
     display: "Amanda Pepinha",
     has_usable_password: true,
     password: "password",
+    verified: true,
   },
   {
     id: 2,
@@ -19,6 +20,7 @@ export const seedUsers: MockUser[] = [
     display: "Bruno Carnietto",
     has_usable_password: true,
     password: "password",
+    verified: true,
   },
 ];
 
@@ -193,13 +195,15 @@ export const db = {
     return users.find((user) => user.email === email.toLowerCase());
   },
 
-  addUser(email: string, password: string): MockUser {
+  /** New accounts are verified unless they come from password signup, which emails a link first. */
+  addUser(email: string, password: string, { verified = true } = {}): MockUser {
     const user: MockUser = {
       id: Math.max(0, ...users.map((candidate) => candidate.id)) + 1,
       email: email.toLowerCase(),
       display: email.split("@")[0],
       has_usable_password: true,
       password,
+      verified,
     };
     users.push(user);
     return user;

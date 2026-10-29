@@ -1,15 +1,21 @@
 import { defineConfig } from "orval";
 
 // allauth's spec describes both the browser and app clients and every flow
-// (password reset, MFA, ...). Keep the three endpoints the frontend uses, with
-// `{client}` fixed to `browser` (cookie session + CSRF), under one tag.
+// (MFA, ...). Keep the endpoints the frontend uses, with `{client}` fixed to
+// `browser` (cookie session + CSRF), under one tag.
 const AUTH_OPERATION_IDS: Record<string, string> = {
   "post login": "login",
   "post signup": "signup",
   "get session": "getSession",
   "delete session": "logout",
+  "get email/verify": "getEmailVerification",
+  "post email/verify": "verifyEmail",
+  "post password/request": "requestPasswordReset",
+  "get password/reset": "getPasswordReset",
+  "post password/reset": "resetPassword",
 };
-const ALLAUTH_PATH = /^\/_allauth\/\{client\}\/v1\/auth\/(login|signup|session)$/;
+const ALLAUTH_PATH =
+  /^\/_allauth\/\{client\}\/v1\/auth\/(login|signup|session|email\/verify|password\/request|password\/reset)$/;
 const DROPPED_PARAMETER = /^#\/components\/parameters\/(Client|SessionToken)$/;
 
 export default defineConfig({

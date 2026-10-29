@@ -28,7 +28,8 @@ Ninja is wired up: `tangostack/api.py` creates the `NinjaAPI` instance (with
 `auth=django_auth`), mounts the `core` router, and `tangostack/urls.py` serves
 it at `/api/`. Authentication is django-allauth's headless **browser** client
 (session cookie + CSRF) at `/_allauth/browser/v1/`: email + password, no
-username, no email verification (`settings.py`, "AUTHENTICATION"). Lists are
+username, mandatory email verification (`settings.py`, "AUTHENTICATION";
+emails are sent through `MAILERS`, "EMAIL"). Lists are
 owned (`TodoList.owner`) and every query is scoped to `request.user`; another
 user's rows are 404. The exported OpenAPI schema is committed as
 `openapi/openapi.json` at the repository root, next to a copy of allauth's shipped
@@ -247,8 +248,15 @@ its `tests/` package or `tests.py`.
 - Authentication is django-allauth (headless, browser client) with the
   Google provider, configured in `settings.py` ("AUTHENTICATION") and
   mounted in `urls.py`. Do not implement a parallel authentication
-  system. Social linking by email stays off while signup doesn't verify
-  emails.
+  system. Social linking by email stays off; now that signup verifies emails,
+  turning it on is a deliberate, separate decision.
+- Email goes through Django 6.1's `MAILERS` setting (the `EMAIL_*` settings are
+  deprecated and cannot be mixed with it), driven by `EMAIL_*` env vars; plain
+  SMTP, so any provider works. The allauth email templates are overridden in
+  `apps/accounts/templates/account/email/` (this app must stay before `allauth`
+  in `INSTALLED_APPS`). Mailpit catches email locally; tests use the in-memory
+  outbox (`mail.outbox`). `create_superuser` also creates a verified
+  `EmailAddress`, otherwise the user could not log in through the app.
 - Before changing authentication, session, cookie, CSRF, social-login,
   or account behavior, inspect the current settings and existing
   integration tests.
@@ -381,7 +389,8 @@ prefer it from the repo root:
 
 | Target                                    | Runs                                         |
 | ----------------------------------------- | -------------------------------------------- |
-| `make db-up` / `make db-down`             | start/stop PostgreSQL via docker compose     |
+| `make db-up` / `make db-down`             | start PostgreSQL / stop the containers       |
+| `make mailpit`                            | start Mailpit (catches outgoing email)       |
 | `make run`                                | `manage.py runserver`                        |
 | `make migrate`                            | `manage.py migrate`                          |
 | `make startapp name=<app_name>`           | `scripts/startapp.py` (see "Creating Apps")  |

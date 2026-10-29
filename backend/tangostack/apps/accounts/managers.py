@@ -10,6 +10,8 @@ class CustomUserManager(BaseUserManager):
     1. has no `username` field;
     2. since it has no `username`, the unique identifier is the `email`.
 
+    Superusers also get a verified `EmailAddress` (see `create_superuser`).
+
     This manager guarantees that a `CustomUser` must always be created
     *without* an username and *with* an email.
     """
@@ -38,4 +40,12 @@ class CustomUserManager(BaseUserManager):
             raise ValueError(_("Superuser must have is_staff=True."))
         if extra_fields.get("is_superuser") is not True:
             raise ValueError(_("Superuser must have is_superuser=True."))
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+        # Logging in through the app requires a verified address; whoever runs
+        # `createsuperuser` has no inbox to confirm from, so vouch for it here.
+        from allauth.account.models import EmailAddress
+
+        EmailAddress.objects.create(
+            user=user, email=user.email, primary=True, verified=True
+        )
+        return user

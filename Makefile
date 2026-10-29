@@ -3,7 +3,7 @@ FE = cd frontend && pnpm
 
 .DEFAULT_GOAL := help
 
-.PHONY: help db-up db-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
+.PHONY: help db-up db-down mailpit up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
@@ -15,11 +15,14 @@ help: ## Show this help
 db-up: ## Start PostgreSQL
 	docker compose up -d postgres
 
-db-down: ## Stop PostgreSQL
+mailpit: ## Start Mailpit, which catches outgoing email (http://localhost:8025)
+	docker compose up -d mailpit
+
+db-down: ## Stop the containers (same as `make down`)
 	docker compose down
 
-up: ## Start everything in containers: postgres, backend, frontend (not the proxy)
-	docker compose up -d postgres backend frontend
+up: ## Start everything in containers: postgres, mailpit, backend, frontend (not the proxy)
+	docker compose up -d postgres mailpit backend frontend
 
 down: ## Stop and remove the containers (data in dkdata/ is kept)
 	docker compose down
@@ -115,9 +118,10 @@ fe-e2e-report: ## Open the last Playwright HTML report
 
 # e2e runs against its own database and ports so it never touches dev data.
 E2E_DB = tangostack_e2e
-E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret
+E2E_ENV = DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=localhost EMAIL_PORT=1026 EMAIL_USE_TLS=false
 
-e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001
+e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001 (email goes to the mailpit-e2e container)
+	@docker compose up -d --wait mailpit-e2e
 	@docker compose exec -T postgres sh -c "psql -U postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='$(E2E_DB)'\" | grep -q 1 || createdb -U postgres $(E2E_DB)"
 	cd backend && $(E2E_ENV) uv run python manage.py migrate --noinput
 	cd backend && $(E2E_ENV) uv run python manage.py runserver 8001 --noreload

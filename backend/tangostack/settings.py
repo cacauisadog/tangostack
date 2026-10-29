@@ -57,12 +57,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "ninja",
     "django_extensions",
+    # before allauth so our email templates (accounts/templates/) override its own
+    "tangostack.apps.accounts",
     "allauth",
     "allauth.account",
     "allauth.headless",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
-    "tangostack.apps.accounts",
     "tangostack.apps.core",
 ]
 
@@ -126,24 +127,34 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
-# No verification yet: signing up logs the user in right away.
-ACCOUNT_EMAIL_VERIFICATION = "none"
+# Signing up (or logging in with an unverified address) sends a link and logs
+# nobody in until it is opened. Social providers that vouch for the address skip it.
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# Emails carry the product name themselves; allauth would prefix the request's host.
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
 HEADLESS_ONLY = True  # no server-rendered allauth pages
 HEADLESS_CLIENTS = ("browser",)  # the frontend is a browser; no app/token client
 
-# Where allauth sends the browser after a social login fails (relative: the
-# frontend and API share an origin, see caddy/). The success URL is the
-# `callback_url` the frontend passes when it starts the flow.
-HEADLESS_FRONTEND_URLS = {"socialaccount_login_error": "/auth/callback"}
+# Frontend pages allauth links to (relative: the frontend and API share an
+# origin, see caddy/). Emails carry these links; `{key}` is filled in by allauth.
+# The social login success URL is the `callback_url` the frontend passes when it
+# starts the flow.
+HEADLESS_FRONTEND_URLS = {
+    "socialaccount_login_error": "/auth/callback",
+    "account_signup": "/signup",
+    "account_confirm_email": "/auth/verify-email/{key}",
+    "account_reset_password": "/auth/forgot-password",
+    "account_reset_password_from_key": "/auth/reset-password/{key}",
+}
 
 # Social login (redirect flow). A provider only exists once its credentials are
 # set, so without them the API doesn't offer it and the frontend hides its button.
 # Google: https://console.cloud.google.com/apis/credentials, OAuth client of type
 # "Web application" with redirect URI `<backend origin>/accounts/google/login/callback/`.
-# Deliberately no SOCIALACCOUNT_EMAIL_AUTHENTICATION: emails aren't verified on
-# password signup, so linking by email would let someone pre-register a victim's
-# address and keep access after the victim signs in with Google.
+# Deliberately no SOCIALACCOUNT_EMAIL_AUTHENTICATION yet. It was unsafe while
+# password signups weren't verified; with verification mandatory it could be
+# enabled, but that is a separate decision.
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
 SOCIALACCOUNT_PROVIDERS = {
@@ -161,6 +172,59 @@ SOCIALACCOUNT_PROVIDERS = {
 # outside of local development (behind the proxy, see BEHIND_PROXY).
 SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+
+
+# ==============================================================================
+# EMAIL
+# https://docs.djangoproject.com/en/6.1/topics/email/
+# Plain SMTP through Django's MAILERS (the EMAIL_* settings are deprecated), so any
+# provider works (Resend, Brevo, Postmark, SES, ...): set the EMAIL_* environment
+# variables to the provider's SMTP credentials. Locally, Mailpit (`make db-up`)
+# catches everything at http://localhost:8025. Tests swap in Django's in-memory
+# backend automatically.
+# ==============================================================================
+# Without an explicit backend, development prints emails to the console and
+# production uses SMTP (which fails loudly until it is configured).
+_EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default=(
+        "django.core.mail.backends.console.EmailBackend"
+        if DEBUG
+        else "django.core.mail.backends.smtp.EmailBackend"
+    ),
+)
+# STARTTLS (usually port 587) is the default; implicit TLS (465) needs EMAIL_USE_SSL.
+# When EMAIL_PORT is unset, Django picks the port from the TLS mode.
+_EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+_EMAIL_PORT = config("EMAIL_PORT", default=0, cast=int)
+MAILERS = {
+    "default": {
+        "BACKEND": _EMAIL_BACKEND,
+        **(
+            {
+                "OPTIONS": {
+                    "host": config("EMAIL_HOST", default="localhost"),
+                    **({"port": _EMAIL_PORT} if _EMAIL_PORT else {}),
+                    "username": config("EMAIL_USERNAME", default=""),
+                    "password": config("EMAIL_PASSWORD", default=""),
+                    "use_ssl": _EMAIL_USE_SSL,
+                    "use_tls": config(
+                        "EMAIL_USE_TLS", default=not _EMAIL_USE_SSL, cast=bool
+                    ),
+                    # a stuck provider mustn't hang the request that sends
+                    "timeout": 10,
+                }
+            }
+            if _EMAIL_BACKEND.endswith("smtp.EmailBackend")
+            else {}
+        ),
+    }
+}
+# Must be an address on a domain the provider has verified (SPF/DKIM/DMARC).
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL", default="Tangostack <noreply@localhost>"
+)
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
 # Password validation
@@ -201,13 +265,3 @@ STATIC_URL = "static/"
 # `collectstatic` target: the production image bakes it in, a proxy or
 # WhiteNoise serves it.
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
-    },
-}

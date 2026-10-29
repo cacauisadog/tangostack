@@ -29,12 +29,18 @@ import type {
   AuthenticatedResponse,
   AuthenticationResponse,
   ConflictResponse,
+  EmailVerificationInfoResponse,
   ErrorResponse,
   ForbiddenResponse,
   LoginBody,
+  PasswordResetInfoResponse,
+  RequestPasswordBody,
+  ResetPasswordBody,
   SessionGoneResponse,
   SignupBody,
-  UnauthenticatedResponse
+  StatusOKResponse,
+  UnauthenticatedResponse,
+  VerifyEmailBody
 } from '../model';
 
 import { authFetch } from '../../authFetcher.ts';
@@ -301,6 +307,632 @@ export const useSignup = <TError = ErrorType<ErrorResponse | AuthenticationRespo
         TContext
       > => {
       return useMutation(getSignupMutationOptions(options), queryClient);
+    }
+    export type getEmailVerificationResponse200 = {
+  data: EmailVerificationInfoResponse
+  status: 200
+}
+
+export type getEmailVerificationResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
+export type getEmailVerificationResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type getEmailVerificationResponseSuccess = (getEmailVerificationResponse200) & {
+  headers: Headers;
+};
+export type getEmailVerificationResponseError = (getEmailVerificationResponse400 | getEmailVerificationResponse409) & {
+  headers: Headers;
+};
+
+export type getEmailVerificationResponse = (getEmailVerificationResponseSuccess | getEmailVerificationResponseError)
+
+export const getGetEmailVerificationUrl = () => {
+
+
+
+
+  return `/_allauth/browser/v1/auth/email/verify`
+}
+
+/**
+ * Obtain email verification information, given the token that was sent to
+ * the user by email.
+ * @summary Get email verification information
+ */
+export const getEmailVerification = async ( options?: Parameters<typeof authFetch>[1]): Promise<getEmailVerificationResponse> => {
+
+  return authFetch<getEmailVerificationResponse>(getGetEmailVerificationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailVerificationQueryKey = () => {
+    return [
+    `/_allauth/browser/v1/auth/email/verify`
+    ] as const;
+    }
+
+
+export const getGetEmailVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getEmailVerification>>, TError = ErrorType<ErrorResponse | ConflictResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailVerificationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailVerification>>> = ({ signal }) => getEmailVerification({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEmailVerificationQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailVerification>>>
+export type GetEmailVerificationQueryError = ErrorType<ErrorResponse | ConflictResponse>
+
+
+export function useGetEmailVerification<TData = Awaited<ReturnType<typeof getEmailVerification>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailVerification>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailVerification>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailVerification<TData = Awaited<ReturnType<typeof getEmailVerification>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailVerification>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailVerification>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailVerification<TData = Awaited<ReturnType<typeof getEmailVerification>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get email verification information
+ */
+
+export function useGetEmailVerification<TData = Awaited<ReturnType<typeof getEmailVerification>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailVerification>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEmailVerificationQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type verifyEmailResponse200 = {
+  data: AuthenticatedResponse
+  status: 200
+}
+
+export type verifyEmailResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
+export type verifyEmailResponse401 = {
+  data: UnauthenticatedResponse
+  status: 401
+}
+
+export type verifyEmailResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type verifyEmailResponseSuccess = (verifyEmailResponse200) & {
+  headers: Headers;
+};
+export type verifyEmailResponseError = (verifyEmailResponse400 | verifyEmailResponse401 | verifyEmailResponse409) & {
+  headers: Headers;
+};
+
+export type verifyEmailResponse = (verifyEmailResponseSuccess | verifyEmailResponseError)
+
+export const getVerifyEmailUrl = () => {
+
+
+
+
+  return `/_allauth/browser/v1/auth/email/verify`
+}
+
+/**
+ * Complete the email verification process. Depending on the configuration,
+ * email addresses are either verified by opening a link that is sent to
+ * their email address, or, by inputting a code that is sent. On the API,
+ * both cases are handled identically. Meaning, the required key is either
+ * the one from the link, or, the code itself.
+ *
+ * Note that a status code of 401 does not imply failure. It indicates that
+ * the email verification was successful, yet, the user is still not signed
+ * in. For example, in case `ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION` is set to
+ * `False`, a 401 is returned when verifying as part of login/signup.
+ * @summary Verify an email
+ */
+export const verifyEmail = async (verifyEmailBody?: VerifyEmailBody, options?: Parameters<typeof authFetch>[1]): Promise<verifyEmailResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return authFetch<verifyEmailResponse>(getVerifyEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(verifyEmailBody)
+  }
+);}
+
+
+
+
+
+export const getVerifyEmailMutationKey = () => ['verifyEmail'] as const;
+
+export const getVerifyEmailMutationOptions = <TError = ErrorType<ErrorResponse | UnauthenticatedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyEmail>>, TError,VerifyEmailMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyEmail>>, TError,VerifyEmailMutationVariables, TContext> => {
+
+const mutationKey = getVerifyEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyEmail>>, VerifyEmailMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyEmailMutationResult = NonNullable<Awaited<ReturnType<typeof verifyEmail>>>
+    export type VerifyEmailMutationBody = VerifyEmailBody | undefined
+    export type VerifyEmailMutationError = ErrorType<ErrorResponse | UnauthenticatedResponse | ConflictResponse>
+    export type VerifyEmailMutationVariables = {data?: VerifyEmailBody}
+
+    /**
+ * @summary Verify an email
+ */
+export const useVerifyEmail = <TError = ErrorType<ErrorResponse | UnauthenticatedResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyEmail>>, TError,VerifyEmailMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof verifyEmail>>,
+        TError,
+        VerifyEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyEmailMutationOptions(options), queryClient);
+    }
+    export type requestPasswordResetResponse200 = {
+  data: StatusOKResponse
+  status: 200
+}
+
+export type requestPasswordResetResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
+export type requestPasswordResetResponse401 = {
+  data: AuthenticationResponse
+  status: 401
+}
+
+export type requestPasswordResetResponseSuccess = (requestPasswordResetResponse200) & {
+  headers: Headers;
+};
+export type requestPasswordResetResponseError = (requestPasswordResetResponse400 | requestPasswordResetResponse401) & {
+  headers: Headers;
+};
+
+export type requestPasswordResetResponse = (requestPasswordResetResponseSuccess | requestPasswordResetResponseError)
+
+export const getRequestPasswordResetUrl = () => {
+
+
+
+
+  return `/_allauth/browser/v1/auth/password/request`
+}
+
+/**
+ * Initiates the password reset procedure. Depending on whether or not
+ * `ACCOUNT_PASSWORD_RESET_BY_CODE_ENABLED` is `True`, the procedure is
+ * either stateless or stateful.
+ *
+ * In case codes are used, it is stateful, and a new
+ * `password_reset_by_code` flow is started. In this case, on a successful
+ * password reset request, you will receive a 401 indicating the pending
+ * status of this flow.
+ *
+ * In case password reset is configured to use (stateless) links, you will
+ * receive a 200 on a successful password reset request.
+ * @summary Request password
+ */
+export const requestPasswordReset = async (requestPasswordBody: RequestPasswordBody, options?: Parameters<typeof authFetch>[1]): Promise<requestPasswordResetResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return authFetch<requestPasswordResetResponse>(getRequestPasswordResetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(requestPasswordBody)
+  }
+);}
+
+
+
+
+
+export const getRequestPasswordResetMutationKey = () => ['requestPasswordReset'] as const;
+
+export const getRequestPasswordResetMutationOptions = <TError = ErrorType<ErrorResponse | AuthenticationResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPasswordReset>>, TError,RequestPasswordResetMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestPasswordReset>>, TError,RequestPasswordResetMutationVariables, TContext> => {
+
+const mutationKey = getRequestPasswordResetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestPasswordReset>>, RequestPasswordResetMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestPasswordReset(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestPasswordResetMutationResult = NonNullable<Awaited<ReturnType<typeof requestPasswordReset>>>
+    export type RequestPasswordResetMutationBody = RequestPasswordBody
+    export type RequestPasswordResetMutationError = ErrorType<ErrorResponse | AuthenticationResponse>
+    export type RequestPasswordResetMutationVariables = {data: RequestPasswordBody}
+
+    /**
+ * @summary Request password
+ */
+export const useRequestPasswordReset = <TError = ErrorType<ErrorResponse | AuthenticationResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestPasswordReset>>, TError,RequestPasswordResetMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof requestPasswordReset>>,
+        TError,
+        RequestPasswordResetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestPasswordResetMutationOptions(options), queryClient);
+    }
+    export type getPasswordResetResponse200 = {
+  data: PasswordResetInfoResponse
+  status: 200
+}
+
+export type getPasswordResetResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
+export type getPasswordResetResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type getPasswordResetResponseSuccess = (getPasswordResetResponse200) & {
+  headers: Headers;
+};
+export type getPasswordResetResponseError = (getPasswordResetResponse400 | getPasswordResetResponse409) & {
+  headers: Headers;
+};
+
+export type getPasswordResetResponse = (getPasswordResetResponseSuccess | getPasswordResetResponseError)
+
+export const getGetPasswordResetUrl = () => {
+
+
+
+
+  return `/_allauth/browser/v1/auth/password/reset`
+}
+
+/**
+ * Used to obtain information on and validate a password reset key.  The
+ * key passed is either the key encoded in the password reset URL that the
+ * user has received per email, or, the password reset code in case of
+ * `ACCOUNT_PASSWORD_RESET_BY_CODE_ENABLED`. Note that in case of a code,
+ * the number of requests you can make is limited (by
+ * `ACCOUNT_PASSWORD_RESET_BY_CODE_MAX_ATTEMPTS`).
+ * @summary Get password reset information
+ */
+export const getPasswordReset = async ( options?: Parameters<typeof authFetch>[1]): Promise<getPasswordResetResponse> => {
+
+  return authFetch<getPasswordResetResponse>(getGetPasswordResetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPasswordResetQueryKey = () => {
+    return [
+    `/_allauth/browser/v1/auth/password/reset`
+    ] as const;
+    }
+
+
+export const getGetPasswordResetQueryOptions = <TData = Awaited<ReturnType<typeof getPasswordReset>>, TError = ErrorType<ErrorResponse | ConflictResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPasswordResetQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPasswordReset>>> = ({ signal }) => getPasswordReset({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPasswordResetQueryResult = NonNullable<Awaited<ReturnType<typeof getPasswordReset>>>
+export type GetPasswordResetQueryError = ErrorType<ErrorResponse | ConflictResponse>
+
+
+export function useGetPasswordReset<TData = Awaited<ReturnType<typeof getPasswordReset>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPasswordReset>>,
+          TError,
+          Awaited<ReturnType<typeof getPasswordReset>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPasswordReset<TData = Awaited<ReturnType<typeof getPasswordReset>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPasswordReset>>,
+          TError,
+          Awaited<ReturnType<typeof getPasswordReset>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPasswordReset<TData = Awaited<ReturnType<typeof getPasswordReset>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get password reset information
+ */
+
+export function useGetPasswordReset<TData = Awaited<ReturnType<typeof getPasswordReset>>, TError = ErrorType<ErrorResponse | ConflictResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPasswordReset>>, TError, TData>>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPasswordResetQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+export type resetPasswordResponse200 = {
+  data: AuthenticatedByPasswordResponse
+  status: 200
+}
+
+export type resetPasswordResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
+export type resetPasswordResponse401 = {
+  data: AuthenticationResponse
+  status: 401
+}
+
+export type resetPasswordResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type resetPasswordResponseSuccess = (resetPasswordResponse200) & {
+  headers: Headers;
+};
+export type resetPasswordResponseError = (resetPasswordResponse400 | resetPasswordResponse401 | resetPasswordResponse409) & {
+  headers: Headers;
+};
+
+export type resetPasswordResponse = (resetPasswordResponseSuccess | resetPasswordResponseError)
+
+export const getResetPasswordUrl = () => {
+
+
+
+
+  return `/_allauth/browser/v1/auth/password/reset`
+}
+
+/**
+ * Perform the password reset, by handing over the password reset key and
+ * the new password. After successfully completing the password reset, the
+ * user is either logged in (in case `ACCOUNT_LOGIN_ON_PASSWORD_RESET` is
+ * `True`), or, the user will need to proceed to the login page.  In case
+ * of the former, a `200` status code is returned, in case of the latter a
+ * 401.
+ * @summary Reset password
+ */
+export const resetPassword = async (resetPasswordBody?: ResetPasswordBody, options?: Parameters<typeof authFetch>[1]): Promise<resetPasswordResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return authFetch<resetPasswordResponse>(getResetPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(resetPasswordBody)
+  }
+);}
+
+
+
+
+
+export const getResetPasswordMutationKey = () => ['resetPassword'] as const;
+
+export const getResetPasswordMutationOptions = <TError = ErrorType<ErrorResponse | AuthenticationResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,ResetPasswordMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,ResetPasswordMutationVariables, TContext> => {
+
+const mutationKey = getResetPasswordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPassword>>, ResetPasswordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPassword>>>
+    export type ResetPasswordMutationBody = ResetPasswordBody | undefined
+    export type ResetPasswordMutationError = ErrorType<ErrorResponse | AuthenticationResponse | ConflictResponse>
+    export type ResetPasswordMutationVariables = {data?: ResetPasswordBody}
+
+    /**
+ * @summary Reset password
+ */
+export const useResetPassword = <TError = ErrorType<ErrorResponse | AuthenticationResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,ResetPasswordMutationVariables, TContext>, request?: SecondParameter<typeof authFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resetPassword>>,
+        TError,
+        ResetPasswordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResetPasswordMutationOptions(options), queryClient);
     }
     export type getSessionResponse200 = {
   data: AuthenticatedResponse

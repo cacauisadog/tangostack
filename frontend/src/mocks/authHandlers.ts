@@ -13,6 +13,11 @@ import { db, type MockUser } from "./db";
 const BASE = "*/_allauth/browser/v1/auth";
 const GOOGLE_EMAIL = "vanilda@gmail.com";
 
+// There's no inbox in mock mode, so the emailed keys are predictable: open
+// /auth/verify-email/verify-<email> or /auth/reset-password/reset-<email> by hand.
+const emailFromKey = (kind: "verify" | "reset", key: string | null) =>
+  key?.startsWith(`${kind}-`) ? key.slice(kind.length + 1) : undefined;
+
 const flows: ProviderFlow[] = [
   { id: "login" },
   { id: "signup" },
@@ -22,6 +27,13 @@ const flows: ProviderFlow[] = [
 const unauthenticatedBody = (): AuthenticationResponse => ({
   status: 401,
   data: { flows },
+  meta: { is_authenticated: false },
+});
+
+/** What allauth answers while an address still has to be confirmed (the link was emailed). */
+const verificationPendingBody = (): AuthenticationResponse => ({
+  status: 401,
+  data: { flows: [...flows, { id: "verify_email", is_pending: true }] },
   meta: { is_authenticated: false },
 });
 
@@ -93,6 +105,9 @@ export const authHandlers = [
         param: "password",
       });
     }
+    if (!user.verified) {
+      return HttpResponse.json(verificationPendingBody(), { status: 401 });
+    }
     db.signIn(user);
     return HttpResponse.json(authenticatedBody(user));
   }),
@@ -107,22 +122,90 @@ export const authHandlers = [
     if (!email) errors.push(required("email"));
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       errors.push({ message: "Enter a valid email address.", code: "invalid", param: "email" });
-    } else if (db.findUserByEmail(email)) {
-      errors.push({
-        message: "A user is already registered with this email address.",
-        code: "email_taken",
-        param: "email",
-      });
     }
     if (!password) errors.push(required("password"));
     else errors.push(...passwordProblems(password));
     if (errors.length) return badRequest(...errors);
 
-    // No email verification, so signing up also signs in.
-    const user = db.addUser(email!, password!);
-    db.signIn(user);
-    return HttpResponse.json(authenticatedBody(user));
+    // Like allauth with enumeration prevention: an existing address gets the same
+    // answer as a new one (its owner is told by email instead). Nobody is signed in
+    // until the emailed link is opened.
+    if (!db.findUserByEmail(email!)) db.addUser(email!, password!, { verified: false });
+    return HttpResponse.json(verificationPendingBody(), { status: 401 });
   }),
+
+  http.get(`${BASE}/email/verify`, async ({ request }) => {
+    await delay();
+    const email = emailFromKey("verify", request.headers.get("X-Email-Verification-Key"));
+    const user = email ? db.findUserByEmail(email) : undefined;
+    if (!user)
+      return badRequest({ message: "Invalid or expired key.", code: "invalid", param: "key" });
+    return HttpResponse.json({
+      status: 200,
+      data: { email: user.email, user: authenticatedBody(user).data.user },
+      meta: { is_authenticating: false },
+    });
+  }),
+
+  http.post<never, { key?: string }>(`${BASE}/email/verify`, async ({ request }) => {
+    await delay();
+    const { key } = await request.json();
+    const email = emailFromKey("verify", key ?? null);
+    const user = email ? db.findUserByEmail(email) : undefined;
+    if (!user)
+      return badRequest({ message: "Invalid or expired key.", code: "invalid", param: "key" });
+    user.verified = true;
+    // verified, but (like allauth's default) not signed in
+    return HttpResponse.json(unauthenticatedBody(), { status: 401 });
+  }),
+
+  http.post<never, { email?: string }>(`${BASE}/password/request`, async ({ request }) => {
+    await delay();
+    const { email } = await request.json();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return badRequest({
+        message: "Enter a valid email address.",
+        code: "invalid",
+        param: "email",
+      });
+    }
+    return HttpResponse.json({ status: 200 });
+  }),
+
+  http.get(`${BASE}/password/reset`, async ({ request }) => {
+    await delay();
+    const email = emailFromKey("reset", request.headers.get("X-Password-Reset-Key"));
+    const user = email ? db.findUserByEmail(email) : undefined;
+    if (!user) {
+      return badRequest({
+        message: "The password reset token was invalid.",
+        code: "token_invalid",
+        param: "key",
+      });
+    }
+    return HttpResponse.json({ status: 200, data: { user: authenticatedBody(user).data.user } });
+  }),
+
+  http.post<never, { key?: string; password?: string }>(
+    `${BASE}/password/reset`,
+    async ({ request }) => {
+      await delay();
+      const { key, password } = await request.json();
+      const email = emailFromKey("reset", key ?? null);
+      const user = email ? db.findUserByEmail(email) : undefined;
+      if (!user) {
+        return badRequest({
+          message: "The password reset token was invalid.",
+          code: "token_invalid",
+          param: "key",
+        });
+      }
+      const errors = password ? passwordProblems(password) : [required("password")];
+      if (errors.length) return badRequest(...errors);
+      user.password = password!;
+      return HttpResponse.json(unauthenticatedBody(), { status: 401 });
+    },
+  ),
 
   // The real endpoint 302s to the provider; the mock skips that and signs in a
   // Google user. Visit /auth/callback?error=unknown to see a failed handshake.

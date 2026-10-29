@@ -49,18 +49,36 @@ API**, and the frontend then conforms to it.
   the Ninja API uses the same session (`auth=django_auth` on the `NinjaAPI`).
   Unsafe methods need the CSRF token: the fetchers send the `csrftoken` cookie
   as `X-CSRFToken` (`api/http.ts`).
-- Email + password only, no username, no email verification (signup logs in).
+- Email + password only, no username. Email verification is **mandatory**
+  (`ACCOUNT_EMAIL_VERIFICATION`): signing up, or logging in with an unconfirmed
+  address, answers `401` with a pending `verify_email` flow and emails a link;
+  nobody is signed in until it is opened (`isVerificationPending` in
+  `auth/api.ts`, the pages show "check your email"). A signup with an existing
+  address gets the same answer (enumeration prevention; its owner is emailed
+  instead). Superusers from `createsuperuser` get a verified address automatically.
   Password rules are Django's validators; the frontend shows their messages.
+- Emails (confirmation, password reset) are Django templates with an HTML and a
+  text part in `backend/tangostack/apps/accounts/templates/account/email/`
+  (`accounts` is listed before `allauth` in `INSTALLED_APPS` so they override
+  allauth's). The links point at frontend pages configured in
+  `HEADLESS_FRONTEND_URLS`: `/auth/verify-email/$key`, `/auth/forgot-password`,
+  `/auth/reset-password/$key`. allauth takes those keys in request headers, which
+  Orval drops, so `auth/api.ts` passes them by hand. A `401` from the verify and
+  reset POSTs means "worked, nobody signed in".
 - Every `/api/*` endpoint answers `401 {"detail": "Unauthorized"}` when logged
   out. Lists belong to `TodoList.owner`; every query is scoped to
   `request.user`, and someone else's list or todo is a `404` (never a 403).
 - allauth's login errors are `400` with `param` (wrong password is
   `param: password`); `401` means "not authenticated" and carries
   `data.flows`. A successful **logout** (`DELETE session`) also answers `401`.
+  Rate limits (e.g. one confirmation email per address every 3 minutes) live in
+  the cache; tests clear it (`tangostack/conftest.py`) and e2e uses a new address
+  per test (`uniqueEmail`).
 - The frontend keeps the session in React Query (`src/auth/api.ts`). A `401`
   from the Ninja API marks the session logged out (`src/api/queryClient.ts`),
   and `AuthGate` redirects to `/login`. Routes: `/login`, `/signup` (guests
-  only), `/` (signed-in only), `/auth/callback` (return from a provider).
+  only), `/` (signed-in only), `/auth/callback` (return from a provider),
+  `/auth/verify-email/$key`, `/auth/forgot-password`, `/auth/reset-password/$key`.
 - Social login: Google, redirect flow. A provider exists only when its
   credentials are set (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in
   `backend/.env`; redirect URI `https://dev.tangostack.com/accounts/google/login/callback/`),
@@ -68,8 +86,8 @@ API**, and the frontend then conforms to it.
   what shows the button (`SocialLogin`). The start is a real form POST (allauth
   answers 302, not XHR); the backend returns to `/auth/callback`, with `?error=`
   on failure. `callback_url` must be same-origin or in `ALLOWED_HOSTS`. No
-  email-based account linking: emails aren't verified on password signup, so it
-  would allow pre-registering someone's address. The spec's `Flow` type lacks
+  email-based account linking yet (it was unsafe before emails were verified;
+  revisit it deliberately, don't assume). The spec's `Flow` type lacks
   `providers` (`ProviderFlow` in `auth/api.ts`). Mocks sign in a fake Google
   user; e2e runs the backend with fake credentials and only checks the redirect.
 
@@ -126,7 +144,9 @@ Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 `VITE_API_MOCKING_KEEP_SESSION` (`true`: the mock login survives reloads, via localStorage).
 
 Mock logins: `amanda@email.com` and `bruno@email.com`, password `password`, each
-with their own lists. Nobody is signed in after a reload unless
+with their own lists. Mock signups stay unconfirmed until you open the emailed
+link by hand: `/auth/verify-email/verify-<email>`; likewise
+`/auth/reset-password/reset-<email>` for a password reset. Nobody is signed in after a reload unless
 `VITE_API_MOCKING_KEEP_SESSION=true` (put it in `frontend/.env.local`). Unit
 tests ignore `.env.local` (pinned in `vitest.config.ts`).
 
@@ -168,8 +188,14 @@ One-time setup: add `127.0.0.1 dev.tangostack.com` to `/etc/hosts`; copy
 `backend/.env.example` to `backend/.env`; `make proxy-up`, then
 `make proxy-trust` (trusts Caddy's local CA; asks for sudo).
 
-Daily: `make db-up proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
+Daily: `make db-up mailpit proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
 for mocks; the domain works for both).
+
+`make mailpit` starts **Mailpit**, which catches all outgoing email and shows
+it at <http://localhost:8025> (SMTP on `:1025`). To use it from `make run`, put
+the `EMAIL_*` lines from `backend/.env.example` in `backend/.env`; without them
+development prints emails to the console. The backend container (`make up`) is
+already wired to it. Nothing is ever delivered.
 
 - Vite allows the host and sends HMR over `wss` on 443 (`vite.config.ts`).
 - Django reads `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `BEHIND_PROXY`, `SECRET_KEY`,
@@ -228,14 +254,19 @@ for mocks; the domain works for both).
   starts its own stack: Django on `:8001` with a dedicated `tangostack_e2e`
   database (created and migrated on demand by `make e2e-backend`) and Vite on
   `:3100` with mocks off. It never touches dev data or your `:3000`/`:8000`
-  servers. The only prerequisite is Postgres (`make db-up`).
+  servers. The only prerequisite is Postgres (`make db-up`); `make e2e-backend`
+  starts the `mailpit-e2e` container itself (SMTP `:1026`, UI/API `:8026`, apart
+  from the dev Mailpit).
   - Tests run serially; `e2e/fixtures.ts` flushes the e2e database (users
     included) before every test (`make e2e-flush`, e2e DB only). Import
     `test`/`expect` from there.
-  - The `api` fixture signs up `amanda@email.com` in the page's browser context
-    and sends the CSRF token for you; use it (not `request`) to seed data, so the
-    page and the API calls share one session. `signUp` and `csrfApi` build other
-    users (see `e2e/auth.spec.ts`).
+  - The `api` fixture signs up a new `amanda.<random>@email.com` in the page's
+    browser context and sends the CSRF token for you; use it (not `request`) to
+    seed data, so the page and the API calls share one session. `signUp` and
+    `csrfApi` build other users (see `e2e/auth.spec.ts`). `signUp` goes through
+    the real email: it reads the confirmation link from Mailpit's API
+    (`emailedLink`), which also lets tests drive the verify and reset pages. The
+    inbox is emptied before every test.
   - Seed data through the API, not the database, so the
     generated types and the real contract are exercised. Cover whole flows;
     keep rule-level checks in backend and vitest tests.

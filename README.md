@@ -66,7 +66,7 @@ Node 26+ and pnpm (the version pinned in `frontend/package.json`).
 ```bash
 make fe-install                       # frontend dependencies
 cp backend/.env.example backend/.env  # local settings (git-ignored)
-make db-up                            # PostgreSQL
+make db-up mailpit                    # PostgreSQL + Mailpit (catches outgoing email)
 make migrate && make superuser        # schema + an admin user
 ```
 
@@ -110,6 +110,7 @@ Run everything from the repository root; `make help` lists all targets.
 | End-to-end tests (real stack) | `make fe-e2e` (needs `make db-up`)           |
 | Export contract + regenerate  | `make api-generate`                          |
 | Production images             | `make build-prod`                            |
+| Read the emails the app sends | <http://localhost:8025> (Mailpit, `make mailpit`) |
 
 ### Changing the API
 

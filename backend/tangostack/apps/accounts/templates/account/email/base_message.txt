@@ -1,0 +1,7 @@
+{% autoescape off %}Tangostack
+
+{% block content %}{% endblock content %}
+
+-- 
+Tangostack
+{% endautoescape %}

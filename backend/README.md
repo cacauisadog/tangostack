@@ -57,9 +57,14 @@ backend/
   is created with `auth=django_auth`, so the same cookie authenticates `/api/`
   and Ninja enforces CSRF on `POST`/`PATCH`/`DELETE`. Anonymous calls get
   `401 {"detail": "Unauthorized"}`.
-- **Accounts** are email + password only: no username, no email verification
-  yet. Google login works through allauth's redirect flow and only exists when
+- **Accounts** are email + password only (no username), and the address must
+  be **verified**: signing up or logging in with an unconfirmed address emails a
+  link and signs nobody in until it is opened. Password reset works the same
+  way. The links open frontend pages (`HEADLESS_FRONTEND_URLS`). Google login
+  works through allauth's redirect flow and only exists when
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are set.
+- **Email** is sent through Django 6.1's `MAILERS` over plain SMTP, so any
+  provider works. See [Email](#email).
 - **Ownership:** a `TodoList` belongs to `owner`; every query is scoped to
   `request.user`. Someone else's list or todo is a **404, never a 403**, so ids
   don't leak.
@@ -72,6 +77,7 @@ SQLite cannot work). From the **repository root**:
 ```bash
 cp backend/.env.example backend/.env
 make db-up         # PostgreSQL via docker compose
+make mailpit       # optional: catches outgoing email (http://localhost:8025)
 make migrate
 make superuser
 make run           # http://localhost:8000
@@ -95,6 +101,11 @@ Settings come from environment variables, read through `python-decouple` from
 | `BEHIND_PROXY`                     | `false`                                         | Trust `X-Forwarded-Proto` from the TLS proxy         |
 | `SESSION_COOKIE_SECURE`            | `false`                                         | Must be `true` in production (also sets the CSRF cookie) |
 | `GOOGLE_CLIENT_ID` / `_SECRET`     | empty                                           | Enables "Continue with Google"                       |
+| `EMAIL_BACKEND`                    | console if `DEBUG`, else SMTP                   | Django email backend (SMTP for a real provider)      |
+| `EMAIL_HOST` / `EMAIL_PORT`        | `localhost` / unset (587, or 465 with SSL)      | The provider's SMTP server                           |
+| `EMAIL_USERNAME` / `EMAIL_PASSWORD`| empty                                           | The provider's SMTP credentials                      |
+| `EMAIL_USE_TLS` / `EMAIL_USE_SSL`  | `true` / `false`                                | STARTTLS or implicit TLS; never both                 |
+| `DEFAULT_FROM_EMAIL`               | `Tangostack <noreply@localhost>`                | **Set in production** to a verified sender address   |
 
 ## Conventions and rules
 
@@ -172,6 +183,30 @@ make api-generate   # export, then regenerate the frontend client
 Both outputs are committed. `core/tests/test_openapi.py` fails when they are
 stale (including after an allauth upgrade), so change a schema, export, commit.
 Never hand-edit them or the generated TypeScript.
+
+## Email
+
+Allauth sends the confirmation and password-reset emails. They use Django
+templates with an HTML and a text part, in
+`tangostack/apps/accounts/templates/account/email/` (`base_message.html` is the
+shared layout, inline CSS; `base_message.txt` brands every text email). Because
+`accounts` is listed before `allauth` in `INSTALLED_APPS`, these files override
+allauth's own; to restyle another email, add a file with the same name. Their
+links come from `HEADLESS_FRONTEND_URLS` and use the host of the request.
+
+Settings use Django 6.1's `MAILERS` (the old `EMAIL_*` settings are deprecated
+and cannot be mixed with it), filled from the `EMAIL_*` environment variables.
+Choosing a provider later only means setting those variables to its SMTP
+credentials and `DEFAULT_FROM_EMAIL` to an address on a domain verified with it
+(SPF, DKIM, DMARC). Nothing in the code changes.
+
+- **Locally:** `make mailpit` starts Mailpit, which catches everything at
+  <http://localhost:8025>. Point Django at it with the `EMAIL_*` lines in
+  `.env.example`; without them emails print to the console.
+- **Tests:** Django's in-memory backend (`mail.outbox`). allauth rate-limits in
+  the cache, so `conftest.py` clears it between tests.
+- **Superusers** made with `createsuperuser` get a verified address, otherwise
+  they could not log in through the app.
 
 ## Testing
 

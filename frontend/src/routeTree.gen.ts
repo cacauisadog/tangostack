@@ -13,6 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as AuthResetPasswordKeyRouteImport } from './routes/auth.reset-password.$key'
+import { Route as AuthVerifyEmailKeyRouteImport } from './routes/auth.verify-email.$key'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +37,39 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordKeyRoute = AuthResetPasswordKeyRouteImport.update({
+  id: '/auth/reset-password/$key',
+  path: '/auth/reset-password/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthVerifyEmailKeyRoute = AuthVerifyEmailKeyRouteImport.update({
+  id: '/auth/verify-email/$key',
+  path: '/auth/verify-email/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/reset-password/$key': typeof AuthResetPasswordKeyRoute
+  '/auth/verify-email/$key': typeof AuthVerifyEmailKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/reset-password/$key': typeof AuthResetPasswordKeyRoute
+  '/auth/verify-email/$key': typeof AuthVerifyEmailKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +77,38 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/reset-password/$key': typeof AuthResetPasswordKeyRoute
+  '/auth/verify-email/$key': typeof AuthVerifyEmailKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/auth/callback'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/auth/callback'
+    | '/auth/forgot-password'
+    | '/auth/reset-password/$key'
+    | '/auth/verify-email/$key'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/auth/callback'
-  id: '__root__' | '/' | '/login' | '/signup' | '/auth/callback'
+  to:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/auth/callback'
+    | '/auth/forgot-password'
+    | '/auth/reset-password/$key'
+    | '/auth/verify-email/$key'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/auth/callback'
+    | '/auth/forgot-password'
+    | '/auth/reset-password/$key'
+    | '/auth/verify-email/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +116,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthResetPasswordKeyRoute: typeof AuthResetPasswordKeyRoute
+  AuthVerifyEmailKeyRoute: typeof AuthVerifyEmailKeyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +151,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password/$key': {
+      id: '/auth/reset-password/$key'
+      path: '/auth/reset-password/$key'
+      fullPath: '/auth/reset-password/$key'
+      preLoaderRoute: typeof AuthResetPasswordKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/verify-email/$key': {
+      id: '/auth/verify-email/$key'
+      path: '/auth/verify-email/$key'
+      fullPath: '/auth/verify-email/$key'
+      preLoaderRoute: typeof AuthVerifyEmailKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +180,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthResetPasswordKeyRoute: AuthResetPasswordKeyRoute,
+  AuthVerifyEmailKeyRoute: AuthVerifyEmailKeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

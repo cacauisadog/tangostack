@@ -11,8 +11,11 @@ import { createQueryClient } from "#/api/queryClient";
 import { render } from "@testing-library/react";
 import HomePage from "#/components/HomePage";
 import AuthCallbackPage from "#/components/auth/AuthCallbackPage";
+import ForgotPasswordPage from "#/components/auth/ForgotPasswordPage";
 import LoginPage from "#/components/auth/LoginPage";
+import ResetPasswordPage from "#/components/auth/ResetPasswordPage";
 import SignupPage from "#/components/auth/SignupPage";
+import VerifyEmailPage from "#/components/auth/VerifyEmailPage";
 import { registerClient } from "./clients";
 
 /**
@@ -36,12 +39,29 @@ export function renderApp(initialPath: string) {
       return <AuthCallbackPage error={callback.useSearch().error} />;
     },
   });
+  const verifyEmail = createRoute({
+    getParentRoute: () => root,
+    path: "/auth/verify-email/$key",
+    component: function VerifyEmailRoute() {
+      return <VerifyEmailPage verificationKey={verifyEmail.useParams().key} />;
+    },
+  });
+  const resetPassword = createRoute({
+    getParentRoute: () => root,
+    path: "/auth/reset-password/$key",
+    component: function ResetPasswordRoute() {
+      return <ResetPasswordPage resetKey={resetPassword.useParams().key} />;
+    },
+  });
   const router = createRouter({
     routeTree: root.addChildren([
       page("/", HomePage),
       page("/login", LoginPage),
       page("/signup", SignupPage),
       callback,
+      page("/auth/forgot-password", ForgotPasswordPage),
+      verifyEmail,
+      resetPassword,
     ]),
     history: createMemoryHistory({ initialEntries: [initialPath] }),
   });
