@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  # Everything arrives through the collector, which exposes it on :8889.
+  - job_name: otel-collector
+    # keep the app's own job/instance labels (service.name, service.instance.id)
+    honor_labels: true
+    static_configs:
+      - targets: ["otel-collector:8889"]

@@ -1,0 +1,101 @@
+"""OpenTelemetry: request metrics and logs, sent over OTLP/HTTP to a collector.
+
+Off unless OTEL_ENABLED is set (see settings.py); nothing from OpenTelemetry is
+imported otherwise. `make obs` starts the local collector, Prometheus, Loki and
+Grafana. Called from CoreConfig.ready(), so every entry point (runserver, gunicorn,
+management commands) is covered, and once per process.
+"""
+
+import copy
+import logging
+import os
+
+from django.conf import settings
+
+# The root logger plus the ones that don't propagate to it but are worth shipping.
+_LOGGERS = ("", "django.server", "gunicorn.access", "gunicorn.error")
+
+_handler = None
+
+
+def _without_objects(record):
+    """A copy of the record without the request (or socket) Django attaches to it:
+    their reprs would only add noise to every shipped line. A copy, because other
+    handlers (e.g. mail_admins) read `record.request`."""
+    clean = copy.copy(record)
+    for key in ("request", "socket"):
+        clean.__dict__.pop(key, None)
+    return clean
+
+
+def attach_log_handler():
+    """Idempotent. `runserver` imports wsgi.py, which runs django.setup() a second time
+    and with it Django's logging config, wiping the handler from `django.server`:
+    wsgi.py calls this again afterwards."""
+    if _handler is None:
+        return
+    for name in _LOGGERS:
+        logger = logging.getLogger(name)
+        if _handler not in logger.handlers:
+            logger.addHandler(_handler)
+
+
+def setup():
+    if settings.OTEL_ENABLED:
+        _start()
+
+
+def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
+    global _handler
+
+    # The stable HTTP conventions: `http.server.request.duration` in seconds,
+    # labelled with the route template (not the raw URL).
+    os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
+
+    from opentelemetry import metrics
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
+        OTLPMetricExporter,
+    )
+    from opentelemetry.instrumentation.django import DjangoInstrumentor
+    from opentelemetry.instrumentation.logging.handler import LoggingHandler
+    from opentelemetry.sdk._logs import LoggerProvider
+    from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+
+    endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/")
+    resource = Resource.create(
+        {
+            "service.name": settings.OTEL_SERVICE_NAME,
+            "deployment.environment.name": "development"
+            if settings.DEBUG
+            else "production",
+        }
+    )
+
+    reader = PeriodicExportingMetricReader(
+        OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics"),
+        export_interval_millis=10_000,
+    )
+    metrics.set_meter_provider(
+        MeterProvider(resource=resource, metric_readers=[reader])
+    )
+
+    logger_provider = LoggerProvider(resource=resource)
+    logger_provider.add_log_record_processor(
+        BatchLogRecordProcessor(OTLPLogExporter(endpoint=f"{endpoint}/v1/logs"))
+    )
+
+    class Handler(LoggingHandler):
+        def emit(self, record):
+            super().emit(_without_objects(record))
+
+    _handler = Handler(level=logging.INFO, logger_provider=logger_provider)
+    attach_log_handler()
+    # The root logger defaults to WARNING, which would drop the INFO lines.
+    logging.getLogger().setLevel(logging.INFO)
+
+    # Static files and silk's own pages would only add noise to the endpoint stats.
+    DjangoInstrumentor().instrument(excluded_urls="static/.*,silk/.*")

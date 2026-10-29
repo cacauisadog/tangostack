@@ -1,0 +1,44 @@
+# Receives the app's metrics and logs over OTLP/HTTP, adds Postgres and container
+# stats, and fans out: metrics -> Prometheus (scrapes :8889), logs -> Loki.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Server-side Postgres stats (connections, commits, rows, ...); the dev database only.
+  postgresql:
+    endpoint: postgres:5432
+    username: postgres
+    password: postgres
+    databases: [tangostack]
+    collection_interval: 10s
+    tls:
+      insecure: true
+
+  # CPU / memory of every container (the backend, Postgres, ...).
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 10s
+
+processors:
+  batch: {}
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, postgresql, docker_stats]
+      processors: [batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp_http/loki]

@@ -11,6 +11,11 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
+from tangostack import telemetry
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tangostack.settings")
 
 application = get_wsgi_application()
+
+# `runserver` runs django.setup() again by importing this module (see telemetry).
+telemetry.attach_log_handler()

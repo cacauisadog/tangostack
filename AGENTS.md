@@ -197,6 +197,10 @@ the `EMAIL_*` lines from `backend/.env.example` in `backend/.env`; without them
 development prints emails to the console. The backend container (`make up`) is
 already wired to it. Nothing is ever delivered.
 
+- **Observability** (OpenTelemetry metrics + logs -> collector -> Prometheus/Loki ->
+  Grafana at <http://localhost:3001>) is opt-in and off by default: `make obs` starts
+  the stack, `OTEL_ENABLED=true` in `backend/.env` turns the app side on. Details in
+  `backend/README.md`; configs in `observability/`.
 - **django-silk** (request/SQL profiler) is on in dev at `/silk/` (no login; routed
   to Django by the Caddyfile). Dev dependency, so never in the prod image;
   `SILK_ENABLED=false` turns it off (the e2e backend does), and it refuses to

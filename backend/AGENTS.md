@@ -398,6 +398,7 @@ prefer it from the repo root:
 | `make check-migrations`                   | `manage.py makemigrations --check --dry-run` |
 | `make shell` / `make dbshell`             | `manage.py shell` / `dbshell`                |
 | `make superuser`                          | `manage.py createsuperuser`                  |
+| `make obs` / `make obs-down`              | start / stop Grafana, Prometheus, Loki, collector |
 | `make silk-clear`                         | delete django-silk's recorded requests       |
 | `make check`                              | `manage.py check`                            |
 | `make api-export`                         | export the OpenAPI schema to `openapi/openapi.json` |

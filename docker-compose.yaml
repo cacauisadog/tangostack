@@ -60,6 +60,8 @@ services:
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
       EMAIL_USE_TLS: "false"
+      # only used when OTEL_ENABLED is on (backend/.env); see `make obs`
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "8000:8000"
     volumes:
@@ -103,6 +105,66 @@ services:
       - ./dkdata/caddy/data:/data
       - ./dkdata/caddy/config:/config
 
+  # Observability (opt-in: `make obs`). The app sends metrics and logs to the collector
+  # (only when OTEL_ENABLED is on), which feeds Prometheus and Loki; Grafana at
+  # http://localhost:3001 shows them. Ports are bound to localhost.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: tangostack__otel_collector
+    profiles: [observability]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # needs the Docker socket for container stats
+    user: "0"
+    ports:
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: tangostack__prometheus
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  loki:
+    image: grafana/loki:3.7.9
+    container_name: tangostack__loki
+    profiles: [observability]
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./observability/loki.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    container_name: tangostack__grafana
+    profiles: [observability]
+    environment:
+      # local only: no login screen
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+
 volumes:
+  prometheus_data:
+  loki_data:
+  grafana_data:
   frontend_node_modules:
   frontend_claude_skills:

@@ -13,6 +13,10 @@ dependencies = [
   "gunicorn[gevent]>=26.2.0",
   "ipdb>=0.13.13",
   "ipython>=9.17.1",
+  "opentelemetry-exporter-otlp-proto-http>=1.45.2",
+  "opentelemetry-instrumentation-django>=0.66b2",
+  "opentelemetry-instrumentation-logging>=0.66b2",
+  "opentelemetry-sdk>=1.45.2",
   "psycopg[binary]>=3.3.6",
   "python-decouple>=3.8",
 ]

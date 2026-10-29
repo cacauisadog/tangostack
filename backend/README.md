@@ -209,6 +209,35 @@ credentials and `DEFAULT_FROM_EMAIL` to an address on a domain verified with it
 - **Superusers** made with `createsuperuser` get a verified address, otherwise
   they could not log in through the app.
 
+## Observability (OpenTelemetry, opt-in)
+
+Off by default, and not needed day to day: it exists to check that metrics and logs
+work. `OTEL_ENABLED` (default `false`) makes the app send request metrics and logs
+over OTLP/HTTP to a local collector (`tangostack/telemetry.py`); when off, nothing
+from OpenTelemetry is even imported.
+
+```bash
+make obs                          # collector, Prometheus, Loki, Grafana
+echo OTEL_ENABLED=true >> backend/.env   # then restart `make run` (or `make up`)
+open http://localhost:3001        # Grafana, no login: dashboard "Tangostack backend"
+make obs-down                     # stop it (data is kept in Docker volumes)
+```
+
+- **Dashboard** (`observability/grafana/dashboards/backend.json`): requests per second,
+  most requested and slowest endpoints (p99), latency percentiles, status codes,
+  container CPU/memory, Postgres stats, and the logs. Endpoints are route templates
+  (`api/lists/<list_id>`), not raw URLs; unmatched URLs (404s) show up with no name.
+- **Pipeline:** app -> `otel-collector` -> Prometheus (metrics) and Loki (logs). The
+  collector also scrapes Postgres and the containers (it needs the Docker socket).
+  Configs live in `observability/`; all ports are bound to localhost.
+- **Env:** `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4318`; the dev
+  container uses `http://otel-collector:4318`) and `OTEL_SERVICE_NAME`.
+- **Gunicorn:** each worker exports its own series (`service_instance_id`); queries
+  sum over them. Verified with gevent workers.
+- **Tests** never enable it (settings ignore `OTEL_ENABLED` under pytest).
+- Only metrics and logs, no traces yet (so no per-query timing: that is what silk is
+  for in development).
+
 ## Profiling (django-silk)
 
 In development, [django-silk](https://github.com/jazzband/django-silk) records

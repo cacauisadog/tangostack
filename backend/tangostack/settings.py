@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 import dj_database_url
@@ -34,6 +35,17 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 
 if not DEBUG and SECRET_KEY.startswith("django-insecure-"):
     raise ImproperlyConfigured("Set SECRET_KEY when DEBUG is off.")
+
+# OpenTelemetry (metrics + logs to a collector): off by default, for trying the
+# observability stack locally (`make obs`). See tangostack/telemetry.py.
+# Never under pytest, so an OTEL_ENABLED in .env can't make the tests ship telemetry.
+OTEL_ENABLED = config("OTEL_ENABLED", default=False, cast=bool) and (
+    "PYTEST_VERSION" not in os.environ
+)
+OTEL_SERVICE_NAME = config("OTEL_SERVICE_NAME", default="tangostack-backend")
+OTEL_EXPORTER_OTLP_ENDPOINT = config(
+    "OTEL_EXPORTER_OTLP_ENDPOINT", default="http://localhost:4318"
+)
 
 # django-silk (request/SQL profiler at /silk/) is a dev dependency: on by default
 # in development, off otherwise. See the SILK section below.

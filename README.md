@@ -111,6 +111,7 @@ Run everything from the repository root; `make help` lists all targets.
 | Export contract + regenerate  | `make api-generate`                          |
 | Production images             | `make build-prod`                            |
 | Read the emails the app sends | <http://localhost:8025> (Mailpit, `make mailpit`) |
+| Metrics and logs dashboards   | <http://localhost:3001> (Grafana, `make obs`; see backend README) |
 
 ### Changing the API
 

@@ -3,7 +3,7 @@ FE = cd frontend && pnpm
 
 .DEFAULT_GOAL := help
 
-.PHONY: help db-up db-down mailpit up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
+.PHONY: help db-up db-down mailpit obs obs-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate
@@ -19,13 +19,19 @@ mailpit: ## Start Mailpit, which catches outgoing email (http://localhost:8025)
 	docker compose up -d mailpit
 
 db-down: ## Stop the containers (same as `make down`)
-	docker compose down
+	docker compose --profile observability down
+
+obs: ## Start the observability stack (OTel collector, Prometheus, Loki, Grafana: http://localhost:3001)
+	docker compose --profile observability up -d otel-collector prometheus loki grafana
+
+obs-down: ## Stop the observability stack (its data is kept)
+	docker compose --profile observability stop otel-collector prometheus loki grafana
 
 up: ## Start everything in containers: postgres, mailpit, backend, frontend (not the proxy)
 	docker compose up -d postgres mailpit backend frontend
 
-down: ## Stop and remove the containers (data in dkdata/ is kept)
-	docker compose down
+down: ## Stop and remove the containers, observability included (data in dkdata/ is kept)
+	docker compose --profile observability down
 
 build: ## Build the dev images of the backend and frontend
 	docker compose build backend frontend
