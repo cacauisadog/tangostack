@@ -9,7 +9,8 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient } from "#/api/queryClient";
 import { render } from "@testing-library/react";
-import HomePage from "#/components/HomePage";
+import LandingPage from "#/components/LandingPage";
+import TodoPage from "#/components/todos/TodoPage";
 import AuthCallbackPage from "#/components/auth/AuthCallbackPage";
 import ForgotPasswordPage from "#/components/auth/ForgotPasswordPage";
 import LoginPage from "#/components/auth/LoginPage";
@@ -55,7 +56,8 @@ export function renderApp(initialPath: string) {
   });
   const router = createRouter({
     routeTree: root.addChildren([
-      page("/", HomePage),
+      page("/", () => <LandingPage renderedAt="2026-01-01T00:00:00.000Z" renderedOn="browser" />),
+      page("/todo", TodoPage),
       page("/login", LoginPage),
       page("/signup", SignupPage),
       callback,

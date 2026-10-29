@@ -17,13 +17,13 @@ make fe-e2e        # Playwright against the real stack (needs `make db-up`)
 
 ## Layout
 
-| Path              | Purpose                                                                  |
-| ----------------- | ------------------------------------------------------------------------ |
-| `src/routes/`     | File-based routes (TanStack Router; `routeTree.gen.ts` is generated)     |
-| `src/components/` | Feature components (`todos/`) and shadcn primitives (`ui/`)              |
-| `src/api/`        | `customFetch` and the generated client (`generated/`, never hand-edited) |
-| `src/mocks/`      | MSW handlers and in-memory data                                          |
-| `e2e/`            | Playwright tests                                                         |
+| Path              | Purpose                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `src/routes/`     | File-based routes (`/` landing is SSR, `/todo` app is `ssr: false`; `routeTree.gen.ts` is generated) |
+| `src/components/` | Feature components (`todos/`) and shadcn primitives (`ui/`)                                          |
+| `src/api/`        | `customFetch` and the generated client (`generated/`, never hand-edited)                             |
+| `src/mocks/`      | MSW handlers and in-memory data                                                                      |
+| `e2e/`            | Playwright tests                                                                                     |
 
 ## Adding shadcn components
 

@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useLogout, useSession } from "#/auth/api";
 import { Button } from "#/components/ui/button";
 
@@ -9,7 +10,9 @@ export default function AppHeader() {
   return (
     <header className="border-b">
       <div className="mx-auto flex h-12 max-w-4xl items-center justify-between gap-4 px-4">
-        <span className="font-semibold tracking-tight">Tangostack</span>
+        <Link to="/" className="font-semibold tracking-tight">
+          Tangostack
+        </Link>
         <div className="flex items-center gap-3">
           {user && <span className="text-sm text-muted-foreground">{user.email}</span>}
           <Button

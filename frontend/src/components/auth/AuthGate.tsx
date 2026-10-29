@@ -21,6 +21,6 @@ export default function AuthGate({ require, children }: AuthGateProps) {
     );
   }
   if (require === "user" && !user) return <Navigate to="/login" replace />;
-  if (require === "guest" && user) return <Navigate to="/" replace />;
+  if (require === "guest" && user) return <Navigate to="/todo" replace />;
   return children;
 }

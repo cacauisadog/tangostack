@@ -2,7 +2,7 @@ import type { TodoListResponse } from "../src/api/generated/model";
 import { csrfApi, emailedLink, expect, PASSWORD, signUp, test, uniqueEmail } from "./fixtures";
 
 test("an anonymous visitor is sent to the login page", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/todo");
 
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
@@ -19,7 +19,7 @@ test("signs up, confirms the address from the emailed link, then logs in and out
   await expect(page.getByText("Check your email", { exact: true })).toBeVisible();
 
   // not signed in until the link is opened
-  await page.goto("/");
+  await page.goto("/todo");
   await expect(page).toHaveURL(/\/login$/);
 
   await page.goto(await emailedLink(email, "verify-email"));
@@ -31,7 +31,7 @@ test("signs up, confirms the address from the emailed link, then logs in and out
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/todo");
   await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText("No lists yet")).toBeVisible();
 
@@ -42,7 +42,7 @@ test("signs up, confirms the address from the emailed link, then logs in and out
 test("keeps the session across a reload", async ({ page }) => {
   const email = uniqueEmail("carla");
   await signUp(page.request, email);
-  await page.goto("/");
+  await page.goto("/todo");
   await expect(page.getByText(email)).toBeVisible();
 
   await page.reload();
@@ -80,7 +80,7 @@ test("resets a forgotten password from the emailed link", async ({ page }) => {
   await expect(page.getByText(/email address and\/or password/i)).toBeVisible();
   await page.getByLabel("Password").fill("a-brand-new-password");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/todo");
 });
 
 test("an unusable confirmation link says so", async ({ page }) => {
@@ -117,9 +117,9 @@ test("users only see their own lists", async ({ page, browser }) => {
   const brunoPage = await bruno.newPage();
   await signUp(brunoPage.request, uniqueEmail("bruno"));
 
-  await page.goto("/");
+  await page.goto("/todo");
   await expect(page.getByText("Amanda's list")).toBeVisible();
-  await brunoPage.goto("/");
+  await brunoPage.goto("/todo");
   await expect(brunoPage.getByText(/no lists yet/i)).toBeVisible();
 
   // Bruno can't reach Amanda's list by id either

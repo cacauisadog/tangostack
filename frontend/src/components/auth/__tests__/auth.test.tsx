@@ -17,7 +17,7 @@ async function logIn(user: ReturnType<typeof userEvent.setup>, email: string, pa
 
 test("sends an anonymous visitor to the login page", async () => {
   db.reset();
-  const router = renderApp("/");
+  const router = renderApp("/todo");
 
   expect(await screen.findByText("Log in", cardTitle)).toBeInTheDocument();
   expect(router.state.location.pathname).toBe("/login");
@@ -28,7 +28,7 @@ test("sends a signed-in user away from the login page", async () => {
   const router = renderApp("/login");
 
   expect(await screen.findByText("My lists")).toBeInTheDocument();
-  expect(router.state.location.pathname).toBe("/");
+  expect(router.state.location.pathname).toBe("/todo");
 });
 
 test("logs in, shows only that user's lists, and logs out", async () => {
@@ -41,7 +41,7 @@ test("logs in, shows only that user's lists, and logs out", async () => {
   expect(await screen.findByText("Work", cardTitle)).toBeInTheDocument();
   expect(screen.getByText("amanda@email.com")).toBeInTheDocument();
   expect(screen.queryByText("Trip to Lisbon", cardTitle)).not.toBeInTheDocument();
-  expect(router.state.location.pathname).toBe("/");
+  expect(router.state.location.pathname).toBe("/todo");
 
   await user.click(screen.getByRole("button", { name: "Log out" }));
 
@@ -189,14 +189,14 @@ test("shows an alert when the session request itself fails", async () => {
       HttpResponse.json({ status: 500 }, { status: 500 }),
     ),
   );
-  renderApp("/");
+  renderApp("/todo");
 
   expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't reach the server/i);
 });
 
 test("sends a signed-in user to the login page when the API says the session expired", async () => {
   db.reset([]);
-  const router = renderApp("/");
+  const router = renderApp("/todo");
   await screen.findByText("My lists");
 
   server.use(
@@ -217,7 +217,7 @@ test("offers Google on login and signup, and signing in lands on the user's list
   await user.click(await screen.findByRole("button", { name: "Continue with Google" }));
 
   expect(await screen.findByText("My lists")).toBeInTheDocument();
-  expect(router.state.location.pathname).toBe("/");
+  expect(router.state.location.pathname).toBe("/todo");
   expect(screen.getByText("vanilda@gmail.com")).toBeInTheDocument();
   // a brand-new account: none of the other users' lists
   expect(screen.queryByText("Work", cardTitle)).not.toBeInTheDocument();
@@ -260,5 +260,21 @@ test("returning from the provider loads the new session", async () => {
   const router = renderApp("/auth/callback");
 
   expect(await screen.findByText("My lists")).toBeInTheDocument();
-  expect(router.state.location.pathname).toBe("/");
+  expect(router.state.location.pathname).toBe("/todo");
+});
+
+test("the landing page offers login to visitors and the app to signed-in users", async () => {
+  db.reset();
+  renderApp("/");
+  expect(await screen.findByRole("button", { name: "Log in" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign up" })).toBeInTheDocument();
+});
+
+test("the landing page links a signed-in user to the app", async () => {
+  db.reset([]);
+  renderApp("/");
+  expect(await screen.findByRole("button", { name: "Open the app" })).toHaveAttribute(
+    "href",
+    "/todo",
+  );
 });

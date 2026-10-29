@@ -2,7 +2,7 @@ import AppHeader from "#/components/auth/AppHeader";
 import AuthGate from "#/components/auth/AuthGate";
 import TodoApp from "#/components/todos/TodoApp";
 
-export default function HomePage() {
+export default function TodoPage() {
   return (
     <AuthGate require="user">
       <AppHeader />

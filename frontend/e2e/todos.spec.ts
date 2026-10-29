@@ -14,7 +14,7 @@ async function createTodo(api: Api, listId: string, text: string) {
 }
 
 test("shows the empty state, then a list created through the UI", async ({ page, api }) => {
-  await page.goto("/");
+  await page.goto("/todo");
   await expect(page.getByText(/no lists yet/i)).toBeVisible();
 
   await page.getByRole("button", { name: /new list/i }).click();
@@ -29,7 +29,7 @@ test("shows the empty state, then a list created through the UI", async ({ page,
 
 test("adds a task, completes it, and keeps the state after a reload", async ({ page, api }) => {
   const list = await createList(api, "Work");
-  await page.goto("/");
+  await page.goto("/todo");
 
   await page.getByRole("button", { name: /add task/i }).click();
   await page.getByPlaceholder("Task name").fill("send report");
@@ -55,7 +55,7 @@ test("renders lists and todos created through the API", async ({ page, api }) =>
     data: { done: true },
   });
 
-  await page.goto("/");
+  await page.goto("/todo");
 
   const workCard = page.locator("[data-slot=card]", { hasText: "Work" });
   const homeCard = page.locator("[data-slot=card]", { hasText: "Home" });
@@ -67,7 +67,7 @@ test("renders lists and todos created through the API", async ({ page, api }) =>
 test("renames a list and edits a task, and both survive a reload", async ({ page, api }) => {
   const list = await createList(api, "Work");
   await createTodo(api, list.id, "send report");
-  await page.goto("/");
+  await page.goto("/todo");
 
   await page.getByRole("button", { name: 'Rename list "Work"' }).click();
   await page.getByRole("textbox", { name: 'Rename list "Work"' }).fill("Office");
@@ -89,7 +89,7 @@ test("deletes a task, then the list after confirming", async ({ page, api }) => 
   const list = await createList(api, "Work");
   await createTodo(api, list.id, "ship it");
   await createTodo(api, list.id, "celebrate");
-  await page.goto("/");
+  await page.goto("/todo");
 
   await page.getByRole("button", { name: 'Delete task "ship it"' }).click();
   await expect(page.getByText("ship it")).toHaveCount(0);

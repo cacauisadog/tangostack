@@ -12,7 +12,7 @@ export default function AuthCallbackPage({ error }: { error?: string }) {
   useEffect(() => {
     if (error) return;
     // the session cookie is already set: load it, then let the route guards decide
-    void refreshSession().then(() => navigate({ to: "/", replace: true }));
+    void refreshSession().then(() => navigate({ to: "/todo", replace: true }));
   }, [error, navigate, refreshSession]);
 
   if (!error) return <p className="p-10 text-muted-foreground">Signing you in…</p>;
