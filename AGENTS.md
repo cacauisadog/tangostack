@@ -235,6 +235,10 @@ One-time setup: add `127.0.0.1 dev.tangostack.com` to `/etc/hosts`; copy
 `backend/.env.example` to `backend/.env`; `make proxy-up`, then
 `make proxy-trust` (trusts Caddy's local CA; asks for sudo).
 
+Every published port in `docker-compose.yaml` is bound to `127.0.0.1`, so nothing
+(Postgres, Django, silk, Mailpit, Vite) is reachable from the LAN. Keep the
+`127.0.0.1:` prefix on new services.
+
 Daily: `make db-up mailpit proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
 for mocks; the domain works for both).
 
