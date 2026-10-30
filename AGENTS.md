@@ -95,7 +95,7 @@ API**, and the frontend then conforms to it.
 
 - Errors use Ninja's bodies: `401` is `{"detail": "Unauthorized"}`, `404` is
   `{"detail": "Not Found"}` and `422` is `{"detail": [{"type", "loc", "msg",
-  "ctx?"}]}`. All are declared in the spec (`ErrorResponse`,
+"ctx?"}]}`. All are declared in the spec (`ErrorResponse`,
   `ValidationErrorResponse`). The frontend's `ApiError` reads `detail`.
 - Schemas are named `<Thing>Create` / `<Thing>Update` / `<Thing>Response` (project
   convention, not enforced by Ninja); the names become the generated TypeScript types.
@@ -117,27 +117,27 @@ API**, and the frontend then conforms to it.
 
 ## Frontend layout (API related)
 
-| Path                                     | Purpose                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------ |
-| `openapi/openapi.json`                   | The contract, exported from Django Ninja (`make api-export`)       |
-| `openapi/allauth/`                       | Copy of allauth's shipped spec (`openapi.yaml`, `description.md`)  |
-| `frontend/orval.config.ts`               | Orval config: `tangostack` (Ninja) and `auth` (allauth) entries    |
-| `frontend/src/api/http.ts`               | Shared fetch core: CSRF header, mock-worker retry, `HttpError`     |
-| `frontend/src/api/fetcher.ts`            | `customFetch` for generated code; throws `ApiError` (`detail`)     |
-| `frontend/src/api/authFetcher.ts`        | `authFetch`; throws `AuthApiError` (`errors[]`, `fieldErrors`)     |
-| `frontend/src/api/queryClient.ts`        | QueryClient: no retry on 4xx, Ninja 401 logs the session out       |
-| `frontend/src/api/generated/`            | Generated Ninja client, hooks and models. Do not edit              |
-| `frontend/src/api/generated-auth/`       | Generated allauth client, hooks and models. Do not edit            |
-| `frontend/src/auth/api.ts`               | `useSession`, `useLogin`, `useSignup`, `useLogout` over generated  |
-| `frontend/src/mocks/db.ts`               | Typed seed data and in-memory store                                |
-| `frontend/src/mocks/handlers.ts`         | One MSW handler per operation, returning Ninja-shaped responses    |
-| `frontend/src/mocks/authHandlers.ts`     | allauth-shaped handlers (session, login, signup, logout)           |
-| `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest)                      |
-| `frontend/src/mocks/enable.ts`           | Starts the worker; on in dev by default                            |
-| `frontend/src/client.tsx`                | Client entry; awaits the worker before hydrating                   |
-| `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient`                               |
-| `frontend/src/test/renderApp.tsx`        | Real pages on a memory router (redirects, login flows)             |
-| `frontend/src/test/factories.ts`         | `todo()` / `todoList()` typed fixtures for tests                   |
+| Path                                     | Purpose                                                           |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| `openapi/openapi.json`                   | The contract, exported from Django Ninja (`make api-export`)      |
+| `openapi/allauth/`                       | Copy of allauth's shipped spec (`openapi.yaml`, `description.md`) |
+| `frontend/orval.config.ts`               | Orval config: `tangostack` (Ninja) and `auth` (allauth) entries   |
+| `frontend/src/api/http.ts`               | Shared fetch core: CSRF header, mock-worker retry, `HttpError`    |
+| `frontend/src/api/fetcher.ts`            | `customFetch` for generated code; throws `ApiError` (`detail`)    |
+| `frontend/src/api/authFetcher.ts`        | `authFetch`; throws `AuthApiError` (`errors[]`, `fieldErrors`)    |
+| `frontend/src/api/queryClient.ts`        | QueryClient: no retry on 4xx, Ninja 401 logs the session out      |
+| `frontend/src/api/generated/`            | Generated Ninja client, hooks and models. Do not edit             |
+| `frontend/src/api/generated-auth/`       | Generated allauth client, hooks and models. Do not edit           |
+| `frontend/src/auth/api.ts`               | `useSession`, `useLogin`, `useSignup`, `useLogout` over generated |
+| `frontend/src/mocks/db.ts`               | Typed seed data and in-memory store                               |
+| `frontend/src/mocks/handlers.ts`         | One MSW handler per operation, returning Ninja-shaped responses   |
+| `frontend/src/mocks/authHandlers.ts`     | allauth-shaped handlers (session, login, signup, logout)          |
+| `frontend/src/mocks/{browser,server}.ts` | MSW worker (browser) and server (Node/vitest)                     |
+| `frontend/src/mocks/enable.ts`           | Starts the worker; on in dev by default                           |
+| `frontend/src/client.tsx`                | Client entry; awaits the worker before hydrating                  |
+| `frontend/src/test/{setup,render}.ts(x)` | MSW lifecycle and `renderWithClient`                              |
+| `frontend/src/test/renderApp.tsx`        | Real pages on a memory router (redirects, login flows)            |
+| `frontend/src/test/factories.ts`         | `todo()` / `todoList()` typed fixtures for tests                  |
 
 Env vars (`frontend/src/env.ts`): `VITE_API_URL` (default: same origin) and
 `VITE_API_MOCKING` (`true`/`false`; default on in dev, off in production builds),
@@ -182,6 +182,48 @@ tests ignore `.env.local` (pinned in `vitest.config.ts`).
   internal URL and cookie forwarding first. A product without public pages can
   drop the SSR server and ship a plain Vite SPA.
 - `GET /healthz` (`routes/healthz.ts`) is the frontend's liveness probe.
+
+## Frontend performance: what to measure as the product grows
+
+Frontend only. The backend's metrics and logs are covered by its own
+observability stack (`make obs`). Nothing here is set up yet: the app is a
+small, mostly client-rendered to-do app, where the browser is what matters. For
+a content-heavy, SEO-driven product (a store with many server-rendered pages),
+measure in four layers.
+
+1. **Real users (RUM), the source of truth.** `web-vitals` in the browser:
+   LCP, INP, CLS, plus TTFB and FCP as diagnostics. Google ranks on field data
+   (CrUX), not lab scores. Keep dimensions: page template, device class,
+   connection, country, release, signed in or not. Read p75 per template and
+   device, never averages. Search Console's Core Web Vitals report shows how
+   Google sees the site.
+2. **The SSR server (what produces TTFB).** This layer is the Node server plus
+   the API calls it makes, so it overlaps with the backend. OpenTelemetry traces
+   with a span per upstream fetch (the usual finding: a render waiting on one
+   slow or serial call), render time per template, cache hit rate (CDN, page,
+   data), correct `Cache-Control`/`s-maxage`, event loop lag and memory.
+3. **What ships to the browser.** Bundle-size budgets per route, a bundle
+   analyser, and third-party scripts (tag managers, chat, reviews), which are
+   often the worst offenders for INP and LCP. Images are usually the LCP element:
+   format (AVIF/WebP), `srcset`, explicit dimensions, `fetchpriority` on the
+   hero. Hydration cost (JS run after the HTML arrives) drives INP: lazy-load
+   below-the-fold components.
+4. **Lab and synthetic (regression guard, debugging).** Lighthouse CI or
+   WebPageTest on a fixed set of representative URLs per PR and on a schedule
+   against production; DevTools traces to debug one page; synthetic checks from
+   several regions. Lab says why, RUM says where.
+
+**Loop:** group RUM by template and rank by p75 times traffic or revenue, use
+the `web-vitals` attribution data (which LCP element, which interaction) to
+tell server, image and render problems apart, reproduce in lab on a throttled
+mid-range device, fix, then compare p75 before and after by release. Add a
+budget or CI check so it doesn't regress, and tie the metrics to conversion so
+fixes can be prioritised by money.
+
+**Where to start:** `web-vitals` RUM with template and device dimensions,
+Lighthouse CI on a few key URLs, bundle budgets, and OTel traces on the SSR
+server. Errors and traces for the browser can go to Sentry (opt-in by DSN);
+adding either needs approval for the new dependencies.
 
 ## Local dev stack (real backend over HTTPS)
 
