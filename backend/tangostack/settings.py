@@ -247,6 +247,21 @@ DEFAULT_FROM_EMAIL = config(
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
+# ==============================================================================
+# LOGGING
+# Django's default prints errors to the console only while DEBUG is on, and
+# otherwise emails ADMINS (none here), so a production 500 left no traceback at all.
+# Log to the console always; the platform collects it (and telemetry.py forwards it).
+# ==============================================================================
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "{levelname} {name}: {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "loggers": {"django": {"handlers": ["console"], "level": "INFO"}},
+}
+
+
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
