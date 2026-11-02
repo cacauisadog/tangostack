@@ -145,7 +145,7 @@ jobs:
       - name: Ask Coolify to redeploy
         if: ${{ env.COOLIFY_WEBHOOK != '' }}
         run: |
-          curl --fail --silent --show-error --request POST "$COOLIFY_WEBHOOK" \
+          curl --fail-with-body --silent --show-error --request POST "$COOLIFY_WEBHOOK" \
             --header "Authorization: Bearer $COOLIFY_TOKEN"
       - name: Skipped (no Coolify webhook yet)
         if: ${{ env.COOLIFY_WEBHOOK == '' }}
