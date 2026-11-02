@@ -310,7 +310,10 @@ pack). It only pulls images (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, default
 CI (`.github/workflows/ci.yaml`): pull requests and pushes to `main` run the backend
 checks (ruff, migrations check, pytest on a Postgres service) and the frontend
 checks (lint, format, types, tests). Playwright e2e is not in CI. A push to `main`
-that passes then builds both `prod` images (linux/amd64), pushes
+that passes then builds both `prod` images (linux/amd64), starts each one
+(`.github/scripts/smoke-test.sh`: the backend against a throwaway Postgres with a real
+migration, `/api/health` and a static file; the frontend's `/healthz` and landing page)
+and only then pushes
 `ghcr.io/<owner>/tangostack-{backend,frontend}` as `:latest` and `:sha-<commit>`
 (roll back by pointing `BACKEND_IMAGE`/`FRONTEND_IMAGE` at an old sha), and POSTs to
 Coolify's deploy webhook. The webhook step is skipped until the repository secrets

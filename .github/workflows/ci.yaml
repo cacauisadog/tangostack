@@ -104,17 +104,31 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=short
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      # Build once into the local image store and run it before anything is pushed
+      # (.github/scripts/smoke-test.sh); the push below reuses these layers.
+      - name: Build for the smoke test
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.name }}
           target: prod
           # the VPS is x86; add linux/arm64 here if it ever isn't
           platforms: linux/amd64
+          load: true
+          tags: smoke/${{ matrix.name }}:test
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+      - name: Smoke test
+        run: bash .github/scripts/smoke-test.sh ${{ matrix.name }} smoke/${{ matrix.name }}:test
+      - name: Push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.name }}
+          target: prod
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   deploy:
     name: Deploy to Coolify
