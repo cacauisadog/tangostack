@@ -291,8 +291,7 @@ already wired to it. Nothing is ever delivered.
 
 `docker-compose.prod.yaml` is the production stack (Coolify's Docker Compose build
 pack). It only pulls images (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, default
-`ghcr.io/cacauisadog/tangostack-*:latest`); CI building and pushing them is not set
-up yet. Services:
+`ghcr.io/cacauisadog/tangostack-*:latest`); CI builds and pushes them. Services:
 
 - `router`: Caddy with `deploy/Caddyfile`, the single origin (same split as
   `caddy/Caddyfile.dev`: `/api`, `/_allauth`, `/accounts`, `/admin`, `/static` to
@@ -307,6 +306,18 @@ up yet. Services:
 - PostgreSQL is **not** in the file: create it as a Coolify database resource
   (scheduled backups to S3-compatible storage) and enable **Connect to predefined
   network** on the app so `DATABASE_URL` can use the database's internal hostname.
+
+CI (`.github/workflows/ci.yaml`): pull requests and pushes to `main` run the backend
+checks (ruff, migrations check, pytest on a Postgres service) and the frontend
+checks (lint, format, types, tests). Playwright e2e is not in CI. A push to `main`
+that passes then builds both `prod` images (linux/amd64), pushes
+`ghcr.io/<owner>/tangostack-{backend,frontend}` as `:latest` and `:sha-<commit>`
+(roll back by pointing `BACKEND_IMAGE`/`FRONTEND_IMAGE` at an old sha), and POSTs to
+Coolify's deploy webhook. The webhook step is skipped until the repository secrets
+`COOLIFY_WEBHOOK` (the app's Webhooks page) and `COOLIFY_TOKEN` (an API token with
+the Deploy permission) exist. Actions are pinned to commit SHAs; bump them by hand.
+After the first push, check the GHCR packages' visibility: a private package needs
+`docker login ghcr.io` on the VPS.
 
 Required variables (`${VAR:?}` stops the deploy when missing): `SECRET_KEY`,
 `DATABASE_URL`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` (with `https://`),
