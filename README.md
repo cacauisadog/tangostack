@@ -52,6 +52,7 @@ contract.
 │   └── allauth/             Copy of allauth's shipped spec
 ├── caddy/Caddyfile.dev    Local HTTPS proxy routing
 ├── docker-compose.yaml    postgres, caddy, and the dev backend/frontend containers
+├── docker-compose.prod.yaml  production stack (Coolify) and deploy/Caddyfile, its router
 ├── Makefile               Every common command (make help)
 ├── dkdata/                Git-ignored: Postgres data, Caddy certificates
 ├── AGENTS.md              Repository-wide conventions and workflow
@@ -109,7 +110,7 @@ Run everything from the repository root; `make help` lists all targets.
 | Frontend checks               | `make fe-check` (lint, format, types, tests) |
 | End-to-end tests (real stack) | `make fe-e2e` (needs `make db-up`)           |
 | Export contract + regenerate  | `make api-generate`                          |
-| Production images             | `make build-prod`                            |
+| Production images             | `make build-prod` (stack: `docker-compose.prod.yaml`) |
 | Read the emails the app sends | <http://localhost:8025> (Mailpit, `make mailpit`) |
 | Metrics and logs dashboards   | <http://localhost:3001> (Grafana, `make obs`; see backend README) |
 

@@ -86,6 +86,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # first: health checks must not depend on ALLOWED_HOSTS (see the class)
+    "tangostack.apps.core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -280,9 +282,23 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = "static/"
-# `collectstatic` target: the production image bakes it in, a proxy or
-# WhiteNoise serves it.
+# `collectstatic` target: the production image bakes it in and WhiteNoise serves it.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Production: hashed file names (cache forever) and gzip/brotli copies. The manifest
+# needs `collectstatic` to have run, so development keeps Django's plain storage.
+if not DEBUG:
+    # WhiteNoise serves STATIC_ROOT (the admin's CSS/JS), right after SecurityMiddleware.
+    # `runserver` serves static files itself, so development doesn't need it.
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
+    }
 
 
 # ==============================================================================

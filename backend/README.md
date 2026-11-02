@@ -301,8 +301,9 @@ unused scaffold imports and add tests under the app's `tests/`.
 
 - `prod` (default): slim Python, only runtime dependencies, non-root, collected
   static files, `DEBUG=false`, runs Gunicorn. It does **not** run migrations on
-  start: run `python manage.py migrate` as a separate release step. Nothing
-  serves static files yet (the admin needs WhiteNoise or the proxy).
+  start: run `python manage.py migrate` as a separate release step. WhiteNoise
+  serves the collected static files (with `DEBUG` off only; `runserver` does it in
+  development).
 - `dev`: dev dependencies and `runserver`, used by `docker-compose.yaml`.
 
 Debugging a running container: `make bash`, or `make shell_plus` for the Django

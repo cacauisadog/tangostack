@@ -271,8 +271,8 @@ already wired to it. Nothing is ever delivered.
   bind mounts can't hide it) + code + `collectstatic`, gunicorn (gevent), non-root,
   `DEBUG=false` (settings refuse to start without a real `SECRET_KEY`). It does
   **not** migrate on start: run `manage.py migrate` as a separate step/release
-  command. No static file server yet: Django serves none with `DEBUG=false`,
-  so the admin needs the proxy to serve `STATIC_ROOT` or WhiteNoise (undecided).
+  command. Static files: WhiteNoise serves `STATIC_ROOT` (baked in by `collectstatic`)
+  when `DEBUG` is off, with hashed names and gzip; `runserver` serves them in development.
 - **frontend `prod`**: only Nitro's `.output` on plain alpine + the node binary.
   `VITE_*` values are build args (compiled into the client bundle).
 - **`dev`** (docker-compose.yaml): source bind-mounted (live reload), dev deps,
@@ -286,6 +286,43 @@ already wired to it. Nothing is ever delivered.
   The other `make` targets (`run`, `migrate`, `test`, ...) still run on the host.
 - `backend/.env` is bind-mounted into the dev container and excluded from images
   (`.dockerignore`): production config comes from env vars.
+
+### Deployment (Coolify, one VPS)
+
+`docker-compose.prod.yaml` is the production stack (Coolify's Docker Compose build
+pack). It only pulls images (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, default
+`ghcr.io/cacauisadog/tangostack-*:latest`); CI building and pushing them is not set
+up yet. Services:
+
+- `router`: Caddy with `deploy/Caddyfile`, the single origin (same split as
+  `caddy/Caddyfile.dev`: `/api`, `/_allauth`, `/accounts`, `/admin`, `/static` to
+  Django, the rest to the frontend). In Coolify, give **this** service the domain
+  (port 80). Coolify's proxy terminates TLS; `trusted_proxies` keeps its
+  `X-Forwarded-Proto`, otherwise Caddy rewrites it to `http` and Django stops
+  seeing HTTPS. Keep that option.
+- `migrate`: runs `manage.py migrate` to completion, then `backend` starts.
+- `backend`, `frontend`: health checks on `/api/health` (200 if the database
+  answers, 503 if not; answers for any `Host`) and `/healthz`. Memory limits are
+  1 GB and 512 MB.
+- PostgreSQL is **not** in the file: create it as a Coolify database resource
+  (scheduled backups to S3-compatible storage) and enable **Connect to predefined
+  network** on the app so `DATABASE_URL` can use the database's internal hostname.
+
+Required variables (`${VAR:?}` stops the deploy when missing): `SECRET_KEY`,
+`DATABASE_URL`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` (with `https://`),
+`EMAIL_HOST`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `DEFAULT_FROM_EMAIL`. Optional:
+`WEB_CONCURRENCY` (2), `EMAIL_PORT`/`EMAIL_USE_SSL`/`EMAIL_USE_TLS` (STARTTLS on
+587; for 465 set `EMAIL_USE_SSL=true` and `EMAIL_USE_TLS=false`),
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. `BEHIND_PROXY` and
+`SESSION_COOKIE_SECURE` are fixed to `true` in the file.
+
+Tested locally with the prod images and a throwaway Postgres: everything healthy,
+routing, bad host rejected, migration before the backend. Not tested: Coolify
+itself. If it reports the app unhealthy because `migrate` exited, add
+`exclude_from_hc: true` to that service in Coolify (a Coolify-only key that plain
+`docker compose` rejects). The router sends `/static` to Django, where WhiteNoise
+serves it (checked: hashed files are immutable-cached and gzipped). Still open:
+`ALLAUTH_TRUSTED_PROXY_COUNT` for real client IPs once Cloudflare's proxy is on.
 
 ## Commands (run from the repository root)
 

@@ -1,0 +1,24 @@
+# Production router: one origin for the app and the API, same split as
+# caddy/Caddyfile.dev. The platform's proxy (Traefik in Coolify) terminates TLS
+# and sends plain HTTP here.
+{
+	admin off
+	auto_https off
+	servers {
+		# Keep the X-Forwarded-* headers the platform's proxy sent. Without this
+		# Caddy overwrites X-Forwarded-Proto with "http", Django no longer sees HTTPS
+		# and rejects every POST (CSRF origin check).
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	@django path /api/* /_allauth/* /accounts/* /admin /admin/* /static/*
+	handle @django {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

@@ -19,6 +19,7 @@ dependencies = [
   "opentelemetry-sdk>=1.45.2",
   "psycopg[binary]>=3.3.6",
   "python-decouple>=3.8",
+  "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
