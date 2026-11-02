@@ -37,11 +37,15 @@ COPY . .
 RUN pnpm build
 
 
-# Plain alpine + the node binary and the C++ runtime it was built against:
-# leaves out npm, yarn and corepack (~30MB).
+# Plain alpine + the node binary and the runtime libraries it was built against:
+# leaves out npm, yarn and corepack (~30MB). The x86-64 build of node also needs
+# libatomic (the arm64 one doesn't, but the file exists in both images), so a
+# missing library only shows up when the image runs on the other architecture.
 FROM alpine:3 AS prod
-COPY --from=base /usr/lib/libstdc++.so.6.0.34 /usr/lib/libgcc_s.so.1 /usr/lib/
-RUN adduser -D -u 1000 node && ln -s libstdc++.so.6.0.34 /usr/lib/libstdc++.so.6
+COPY --from=base /usr/lib/libstdc++.so.6.0.34 /usr/lib/libgcc_s.so.1 /usr/lib/libatomic.so.1.2.0 /usr/lib/
+RUN adduser -D -u 1000 node && \
+  ln -s libstdc++.so.6.0.34 /usr/lib/libstdc++.so.6 && \
+  ln -s libatomic.so.1.2.0 /usr/lib/libatomic.so.1
 COPY --from=base /usr/local/bin/node /usr/local/bin/node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
 WORKDIR /app
