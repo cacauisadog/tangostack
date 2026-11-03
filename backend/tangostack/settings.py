@@ -61,6 +61,13 @@ CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 if config("BEHIND_PROXY", default=False, cast=bool):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+# Header carrying the real client IP, for allauth's rate limits and logs
+# (Cloudflare: CF-Connecting-IP). Set it only when every request really comes
+# through that proxy: allauth rejects requests that lack the header.
+TRUSTED_CLIENT_IP_HEADER = config("TRUSTED_CLIENT_IP_HEADER", default="")
+if TRUSTED_CLIENT_IP_HEADER:
+    ALLAUTH_TRUSTED_CLIENT_IP_HEADER = TRUSTED_CLIENT_IP_HEADER
+
 AUTH_USER_MODEL = "accounts.CustomUser"
 
 

@@ -58,6 +58,7 @@ services:
       # TLS ends at the platform's proxy, which sends X-Forwarded-Proto
       BEHIND_PROXY: "true"
       SESSION_COOKIE_SECURE: "true"
+      TRUSTED_CLIENT_IP_HEADER: ${TRUSTED_CLIENT_IP_HEADER:-}
       # gunicorn's worker count
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       # Email through the provider's SMTP. Defaults: STARTTLS on 587. For implicit
