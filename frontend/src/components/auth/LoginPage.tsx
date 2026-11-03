@@ -7,19 +7,19 @@ import CheckEmail from "./CheckEmail";
 
 export default function LoginPage() {
   const login = useLogin();
-  const [email, setEmail] = useState("");
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
   return (
     <AuthGate require="guest">
       <AuthLayout>
         {isVerificationPending(login.error) ? (
-          <CheckEmail email={email} reason="login" onBack={login.reset} />
+          <CheckEmail credentials={credentials} reason="login" onBack={login.reset} />
         ) : (
           <AuthForm
             mode="login"
             isPending={login.isPending}
             error={login.error}
             onSubmit={(data) => {
-              setEmail(data.email);
+              setCredentials(data);
               login.mutate({ data });
             }}
           />

@@ -55,7 +55,10 @@ API**, and the frontend then conforms to it.
   nobody is signed in until it is opened (`isVerificationPending` in
   `auth/api.ts`, the pages show "check your email"). A signup with an existing
   address gets the same answer (enumeration prevention; its owner is emailed
-  instead). Superusers from `createsuperuser` get a verified address automatically.
+  instead). "Resend email" on that screen logs in again with the typed credentials
+  (`useResendVerification`; allauth's resend endpoint is for the code flow only);
+  allauth sends one link per address every 3 minutes, so the button counts that down.
+  Superusers from `createsuperuser` get a verified address automatically.
   Password rules are Django's validators; the frontend shows their messages.
 - Emails (confirmation, password reset) are Django templates with an HTML and a
   text part in `backend/tangostack/apps/accounts/templates/account/email/`

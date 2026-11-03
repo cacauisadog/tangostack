@@ -1,10 +1,14 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { db } from "#/mocks/db";
 import { server } from "#/mocks/server";
 import { renderApp } from "#/test/renderApp";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const cardTitle = { selector: "[data-slot=card-title]" };
 
@@ -111,6 +115,42 @@ test("signing up asks to check the inbox; the emailed link confirms the address,
   await logIn(user, "carla@example.com", "a-long-password");
   expect(await screen.findByText(/no lists yet/i)).toBeInTheDocument();
   expect(screen.getByText("carla@example.com")).toBeInTheDocument();
+});
+
+test("the check-your-email screen can send the link again, once the cooldown is over", async () => {
+  db.reset();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  const logins: unknown[] = [];
+  server.use(
+    http.post("*/_allauth/browser/v1/auth/login", async ({ request }) => {
+      logins.push(await request.json());
+      return HttpResponse.json(
+        { status: 401, data: { flows: [{ id: "verify_email", is_pending: true }] } },
+        { status: 401 },
+      );
+    }),
+  );
+  renderApp("/signup");
+
+  await user.type(await screen.findByLabelText("Email"), "dora@example.com");
+  await user.type(screen.getByLabelText("Password"), "a-long-password");
+  await user.click(screen.getByRole("button", { name: "Sign up" }));
+  expect(await screen.findByText("Check your email", cardTitle)).toBeInTheDocument();
+
+  // allauth sends one link per address every 3 minutes: asking sooner would send nothing
+  const resend = screen.getByRole("button", { name: /Resend email in 3:00/ });
+  expect(resend).toBeDisabled();
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(180_000);
+  });
+  await user.click(await screen.findByRole("button", { name: "Resend email" }));
+
+  expect(await screen.findByText(/Sent again/)).toBeInTheDocument();
+  expect(logins).toEqual([{ email: "dora@example.com", password: "a-long-password" }]);
+  // and the cooldown starts over
+  expect(screen.getByRole("button", { name: /Resend email in 3:00/ })).toBeDisabled();
 });
 
 test("signing up with a taken email looks the same as with a new one", async () => {

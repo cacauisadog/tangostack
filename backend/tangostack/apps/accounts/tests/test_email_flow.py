@@ -5,6 +5,7 @@ import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.test import Client
 
 pytestmark = pytest.mark.django_db
@@ -73,6 +74,21 @@ def test_logging_in_with_an_unverified_address_sends_a_new_link(client):
     (message,) = mail.outbox
     assert message.to == [CREDENTIALS["email"]]
     assert link_key(message, "verify-email")
+
+
+def test_the_link_can_be_resent_by_logging_in_again_once_the_cooldown_is_over(client):
+    # The "Resend email" button does exactly this (and waits out the cooldown).
+    sign_up(client)
+    assert len(mail.outbox) == 1
+
+    assert post(client, "login", CREDENTIALS).status_code == 401
+    # too soon: allauth sends one link per address every 3 minutes
+    assert len(mail.outbox) == 1
+
+    cache.clear()  # its rate limit lives in the cache: this is "3 minutes later"
+    assert post(client, "login", CREDENTIALS).status_code == 401
+    assert len(mail.outbox) == 2
+    assert link_key(mail.outbox[1], "verify-email")
 
 
 def test_a_superuser_created_on_the_command_line_can_log_in(client):

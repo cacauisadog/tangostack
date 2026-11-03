@@ -8,6 +8,7 @@ import {
   getGetSessionQueryKey,
   getPasswordReset,
   getSession,
+  login,
   resetPassword,
   useLogin as useGeneratedLogin,
   useLogout as useGeneratedLogout,
@@ -60,6 +61,30 @@ export function useLogin() {
   const startSession = useStartSession();
   return useGeneratedLogin({
     mutation: { onSuccess: (res) => startSession(res.status === 200 ? res.data.data.user : null) },
+  });
+}
+
+/**
+ * Sends the confirmation link again. allauth's resend endpoint only exists for the
+ * emailed-code flow, so this logs in once more: an unconfirmed address answers 401
+ * "pending" and gets a fresh link (allauth sends one per address every few minutes,
+ * see RESEND_COOLDOWN_SECONDS). If the address was confirmed meanwhile it signs in.
+ */
+export function useResendVerification() {
+  const startSession = useStartSession();
+  return useMutation({
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      try {
+        const res = await login(credentials);
+        return res.status === 200 ? res.data.data.user : null;
+      } catch (error) {
+        if (isVerificationPending(error)) return null;
+        throw error;
+      }
+    },
+    onSuccess: (user) => {
+      if (user) startSession(user);
+    },
   });
 }
 
