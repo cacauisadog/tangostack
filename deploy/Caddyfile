@@ -15,10 +15,10 @@
 :80 {
 	@django path /api/* /_allauth/* /accounts/* /admin /admin/* /static/*
 	handle @django {
-		reverse_proxy backend:8000
+		reverse_proxy {$BACKEND_HOST:backend}:8000
 	}
 
 	handle {
-		reverse_proxy frontend:3000
+		reverse_proxy {$FRONTEND_HOST:frontend}:3000
 	}
 }

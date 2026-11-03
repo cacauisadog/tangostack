@@ -5,6 +5,10 @@
 # - Images come from the registry (built by CI); this file never builds.
 # - PostgreSQL is not here: it is a Coolify database resource (scheduled backups),
 #   reached through the destination's predefined network. See "Deployment" in AGENTS.md.
+# - Coolify's predefined network is shared by every stack on the server, and there a
+#   service name like `backend` would resolve to every stack's backend (staging and
+#   production would serve each other's requests). So the router reaches the
+#   backend and frontend through aliases that carry the stack's own id.
 # - `router` is the only service the platform's proxy talks to: give it the domain
 #   in Coolify (port 80). It sends /api, /_allauth, /accounts, /admin and /static
 #   to Django and everything else to the frontend (deploy/Caddyfile).
@@ -15,6 +19,9 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    environment:
+      BACKEND_HOST: backend-${COOLIFY_RESOURCE_UUID:-local}
+      FRONTEND_HOST: frontend-${COOLIFY_RESOURCE_UUID:-local}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
@@ -43,6 +50,10 @@ services:
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/cacauisadog/tangostack-backend:latest}
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - backend-${COOLIFY_RESOURCE_UUID:-local}
     expose:
       - "8000"
     depends_on:
@@ -90,6 +101,10 @@ services:
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/cacauisadog/tangostack-frontend:latest}
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - frontend-${COOLIFY_RESOURCE_UUID:-local}
     expose:
       - "3000"
     healthcheck:

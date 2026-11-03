@@ -335,7 +335,15 @@ routing, bad host rejected, migration before the backend. Not tested: Coolify
 itself. If it reports the app unhealthy because `migrate` exited, add
 `exclude_from_hc: true` to that service in Coolify (a Coolify-only key that plain
 `docker compose` rejects). The router sends `/static` to Django, where WhiteNoise
-serves it (checked: hashed files are immutable-cached and gzipped). Real client IPs:
+serves it (checked: hashed files are immutable-cached and gzipped). Several stacks on one server: Coolify's predefined network is shared by all of
+them, so a bare service name (`backend`) resolves to every stack's backend and
+staging/production would serve each other's requests (seen: the prod backend
+rejecting `Host: staging...`). The router therefore reaches the backend and
+frontend through aliases that include `COOLIFY_RESOURCE_UUID`
+(`BACKEND_HOST`/`FRONTEND_HOST` in `deploy/Caddyfile`). Keep any new
+service-to-service address unique per stack the same way.
+
+Real client IPs:
 set `TRUSTED_CLIENT_IP_HEADER=CF-Connecting-IP` in Coolify once Cloudflare's
 proxy is on for the domain (it becomes allauth's `ALLAUTH_TRUSTED_CLIENT_IP_HEADER`).
 Leave it unset when requests don't all come through Cloudflare: allauth rejects
