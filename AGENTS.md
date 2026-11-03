@@ -314,11 +314,23 @@ that passes then builds both `prod` images (linux/amd64), starts each one
 (`.github/scripts/smoke-test.sh`: the backend against a throwaway Postgres with a real
 migration, `/api/health` and a static file; the frontend's `/healthz` and landing page)
 and only then pushes
-`ghcr.io/<owner>/tangostack-{backend,frontend}` as `:latest` and `:sha-<commit>`
-(roll back by pointing `BACKEND_IMAGE`/`FRONTEND_IMAGE` at an old sha), and POSTs to
-Coolify's deploy webhook. The webhook step is skipped until the repository secrets
-`COOLIFY_WEBHOOK` (the app's Webhooks page) and `COOLIFY_TOKEN` (an API token with
-the Deploy permission) exist. Actions are pinned to commit SHAs; bump them by hand.
+`ghcr.io/<owner>/tangostack-{backend,frontend}` as `:latest` and `:sha-<commit>`.
+
+Environments are trunk-based: every push to `main` deploys **staging** (the
+`staging` GitHub environment; its `COOLIFY_WEBHOOK` secret, from the app's Webhooks
+page, and `COOLIFY_TOKEN`, an API token with Deploy permission; staging follows
+`:latest`). Then `deploy-production.yaml` promotes the **same images** to
+production once the `production` environment's required reviewer approves: it sets
+`BACKEND_IMAGE`/`FRONTEND_IMAGE` on the production app to `:sha-<7 chars>` through
+Coolify's API (`PATCH /applications/{uuid}/envs`, which only updates variables that
+already exist: create both once by hand), then `POST /deploy?uuid=`. The
+`production` environment needs the secret `COOLIFY_TOKEN` (write + deploy
+permissions) and the variables `COOLIFY_URL` (e.g. `https://coolify.example.com`)
+and `COOLIFY_APP_UUID`. **Rollback:** Actions > Deploy production > Run workflow with
+an older commit sha. Don't edit the production image variables by hand. Coolify
+checks out the compose file and `deploy/Caddyfile` from `main`'s latest commit, so
+promoting an old sha after changing those files mixes versions. Actions are
+pinned to commit SHAs; bump them by hand.
 After the first push, check the GHCR packages' visibility: a private package needs
 `docker login ghcr.io` on the VPS.
 
@@ -335,7 +347,9 @@ routing, bad host rejected, migration before the backend. Not tested: Coolify
 itself. If it reports the app unhealthy because `migrate` exited, add
 `exclude_from_hc: true` to that service in Coolify (a Coolify-only key that plain
 `docker compose` rejects). The router sends `/static` to Django, where WhiteNoise
-serves it (checked: hashed files are immutable-cached and gzipped). Several stacks on one server: Coolify's predefined network is shared by all of
+serves it (checked: hashed files are immutable-cached and gzipped).
+
+Several stacks on one server: Coolify's predefined network is shared by all of
 them, so a bare service name (`backend`) resolves to every stack's backend and
 staging/production would serve each other's requests (seen: the prod backend
 rejecting `Host: staging...`). The router therefore reaches the backend and

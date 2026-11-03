@@ -130,13 +130,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
 
-  deploy:
-    name: Deploy to Coolify
+  deploy-staging:
+    name: Deploy to staging
     needs: images
+    # pull requests only run the checks above
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: staging
     # two deploys never overlap, and a running one is never cancelled halfway
     concurrency:
-      group: deploy
+      group: deploy-staging
       cancel-in-progress: false
     env:
       COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
@@ -149,4 +152,16 @@ jobs:
             --header "Authorization: Bearer $COOLIFY_TOKEN"
       - name: Skipped (no Coolify webhook yet)
         if: ${{ env.COOLIFY_WEBHOOK == '' }}
-        run: echo "Set the COOLIFY_WEBHOOK and COOLIFY_TOKEN repository secrets to deploy."
+        run: echo "Set the COOLIFY_WEBHOOK and COOLIFY_TOKEN secrets of the staging environment to deploy."
+
+  # The same images staging just ran, once the `production` environment's reviewer approves.
+  deploy-production:
+    name: Deploy to production
+    needs: deploy-staging
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-production.yaml
+    with:
+      sha: ${{ github.sha }}
+    secrets: inherit
