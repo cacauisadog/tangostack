@@ -17,6 +17,10 @@ services:
   router:
     image: caddy:2.11.7
     restart: unless-stopped
+    # Named so Coolify keeps it on this stack's own network, where the backend and
+    # frontend aliases live (it only adds its networks to services that declare some).
+    networks:
+      - default
     expose:
       - "80"
     environment:
