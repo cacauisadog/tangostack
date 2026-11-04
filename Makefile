@@ -1,12 +1,16 @@
 MANAGE = cd backend && uv run python manage.py
 FE = cd frontend && pnpm
 
+# Kamal installs as a user gem (gem install kamal --user-install), often not on PATH.
+KAMAL ?= $(or $(shell command -v kamal),$(shell ruby -e 'puts Gem.user_dir')/bin/kamal)
+GHCR = ghcr.io/cacauisadog/tangostack
+
 .DEFAULT_GOAL := help
 
 .PHONY: help db-up db-down mailpit obs obs-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
-	fe-typecheck fe-check fe-api-generate api-export api-generate
+	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -160,3 +164,16 @@ api-export: ## Export the OpenAPI specs: Ninja's (openapi/openapi.json) and a co
 api-generate: api-export fe-api-generate ## Export the OpenAPI schema, then regenerate the frontend client
 
 fe-check: fe-lint fe-format-check fe-typecheck fe-test ## Run all frontend checks
+
+deploy: ## Deploy to staging or production (required: env=staging|production; optional: sha=<full commit sha>, default HEAD)
+	@case "$(env)" in staging|production) ;; *) echo "Usage: make deploy env=staging|production [sha=<full commit sha>]"; exit 1;; esac
+	@sha="$(or $(sha),$(shell git rev-parse HEAD))"; \
+	for image in backend frontend; do \
+		docker manifest inspect $(GHCR)-$$image:$$sha >/dev/null 2>&1 || { echo "No $$image image for $$sha: wait for CI to build that commit, or pass sha=<an earlier one>."; exit 1; }; \
+	done; \
+	if [ "$(env)" = production ]; then read -r -p "Deploy $$sha to PRODUCTION? [y/N] " answer; [ "$$answer" = y ] || { echo aborted; exit 1; }; fi; \
+	KAMAL=$(KAMAL) deploy/deploy.sh $(env) $$sha
+
+deploy-logs: ## Follow-less log tail of a deployed service (required: env=; optional: svc=backend|frontend, lines=100)
+	@test -n "$(env)" || { echo "Usage: make deploy-logs env=staging|production [svc=backend|frontend] [lines=100]"; exit 1; }
+	deploy/with-env.sh $(env) $(KAMAL) app logs -c config/deploy.$(or $(svc),backend).yml -d $(env) --lines $(or $(lines),100)

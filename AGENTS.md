@@ -341,6 +341,11 @@ environment and an older full commit sha. Each GitHub environment needs the vari
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TLS_CERT`, `TLS_KEY`
 (`deploy.yaml` lists them). Actions are pinned to commit SHAs; bump them by hand.
 
+By hand: `make deploy env=staging|production [sha=<full sha>]` (HEAD by default; it
+checks that CI built the images and asks before deploying production) and
+`make deploy-logs env=... [svc=frontend] [lines=N]`. Rolling back is `make deploy` with
+an older sha. Both need `~/.config/tangostack/<environment>.env`.
+
 First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` user,
 swap, fail2ban, unattended upgrades, SSH lockdown), then
 `deploy/deploy.sh <environment> <sha> --first` (boots the proxy and the database).
