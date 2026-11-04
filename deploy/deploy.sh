@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Deploys one environment with Kamal: migrate with the new image, then the backend,
-# then the frontend. CI runs this too (the GitHub environment's secrets are the
-# environment); locally it loads ~/.config/tangostack/<destination>.env.
+# Deploys one environment with Kamal: the backend (it migrates on start, before the
+# proxy switches traffic), then the frontend. CI runs this too (the GitHub
+# environment's secrets are the environment); locally it loads
+# ~/.config/tangostack/<destination>.env.
 #
 #   deploy/deploy.sh <staging|production> <image tag, normally the commit sha> [--first]
 #
@@ -27,15 +28,6 @@ if [ "$first" = "--first" ]; then
   "$kamal" proxy boot "${backend[@]}"
   "$kamal" accessory boot db "${backend[@]}"
 fi
-
-"$kamal" registry login "${backend[@]}"
-
-# The database may still be starting on a first deploy.
-for attempt in 1 2 3 4 5 6; do
-  "$kamal" app exec "${backend[@]}" --version "$version" "python manage.py migrate --noinput" && break
-  [ "$attempt" -lt 6 ] || { echo "migrate failed" >&2; exit 1; }
-  sleep 5
-done
 
 "$kamal" deploy "${backend[@]}" --skip-push --version "$version"
 "$kamal" deploy "${frontend[@]}" --skip-push --version "$version"

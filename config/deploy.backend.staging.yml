@@ -1,2 +1,6 @@
-# Staging: its own container names, database and secrets (.kamal/secrets.staging).
-service: tangostack-backend-staging
+# Staging: its own database and secrets (.kamal/secrets.staging); container names
+# already carry the destination. The accessory's name has to differ per destination
+# because both live on one host.
+accessories:
+  db:
+    service: tangostack-backend-staging-db

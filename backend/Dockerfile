@@ -38,6 +38,8 @@ CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 
 FROM base AS prod
+# Kamal refuses an image whose `service` label differs from its config (config/deploy.backend.yml).
+LABEL service="tangostack-backend"
 # Safe by default: settings refuse to start without a real SECRET_KEY.
 ENV DEBUG=false
 COPY --from=deps-prod /opt/venv /opt/venv

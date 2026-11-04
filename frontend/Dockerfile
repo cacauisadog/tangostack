@@ -42,6 +42,8 @@ RUN pnpm build
 # libatomic (the arm64 one doesn't, but the file exists in both images), so a
 # missing library only shows up when the image runs on the other architecture.
 FROM alpine:3 AS prod
+# Kamal refuses an image whose `service` label differs from its config (config/deploy.frontend.yml).
+LABEL service="tangostack-frontend"
 COPY --from=base /usr/lib/libstdc++.so.6.0.34 /usr/lib/libgcc_s.so.1 /usr/lib/libatomic.so.1.2.0 /usr/lib/
 RUN adduser -D -u 1000 node && \
   ln -s libstdc++.so.6.0.34 /usr/lib/libstdc++.so.6 && \

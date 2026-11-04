@@ -6,9 +6,15 @@
 service: tangostack-backend
 image: cacauisadog/tangostack-backend
 
+# The container migrates, then serves: kamal-proxy only switches traffic once the new
+# container passes its health check, i.e. after the migration finished (the old
+# version keeps serving meanwhile, so migrations must stay backward compatible).
+# Keep the gunicorn part in sync with the prod stage of backend/Dockerfile.
 servers:
   web:
-    - <%= ENV.fetch("DEPLOY_HOST") %>
+    hosts:
+      - <%= ENV.fetch("DEPLOY_HOST") %>
+    cmd: sh -c "python manage.py migrate --noinput && exec gunicorn tangostack.wsgi:application --bind 0.0.0.0:8000 --worker-class gevent --access-logfile -"
 
 registry:
   server: ghcr.io
@@ -43,6 +49,8 @@ proxy:
     interval: 2
     timeout: 5
 
+# room for a migration before the first health check passes
+deploy_timeout: 180
 drain_timeout: 30
 stop_timeout: 35
 

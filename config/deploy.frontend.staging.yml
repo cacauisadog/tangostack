@@ -1,2 +1,2 @@
-# Staging: its own container names, database and secrets (.kamal/secrets.staging).
-service: tangostack-frontend-staging
+# Staging: its own secrets (.kamal/secrets.staging); container names carry the destination.
+{}

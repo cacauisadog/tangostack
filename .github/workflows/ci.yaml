@@ -1,5 +1,5 @@
 # Checks on every pull request and push to main. Pushes to main also publish the
-# production images to GHCR and ask Coolify to redeploy (see "Deployment" in AGENTS.md).
+# production images to GHCR and deploy them with Kamal (see "Deployment" in AGENTS.md).
 name: CI
 
 on:
@@ -96,7 +96,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # :latest is what docker-compose.prod.yaml runs; :sha-... is for rollbacks
+      # deploys use the full commit sha as the tag (Kamal's version); :sha-<short> is for humans
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -104,6 +104,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=short
+            type=sha,format=long,prefix=
       # Build once into the local image store and run it before anything is pushed
       # (.github/scripts/smoke-test.sh); the push below reuses these layers.
       - name: Build for the smoke test
@@ -135,24 +136,14 @@ jobs:
     needs: images
     # pull requests only run the checks above
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: staging
-    # two deploys never overlap, and a running one is never cancelled halfway
-    concurrency:
-      group: deploy-staging
-      cancel-in-progress: false
-    env:
-      COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
-    steps:
-      - name: Ask Coolify to redeploy
-        if: ${{ env.COOLIFY_WEBHOOK != '' }}
-        run: |
-          curl --fail-with-body --silent --show-error --request POST "$COOLIFY_WEBHOOK" \
-            --header "Authorization: Bearer $COOLIFY_TOKEN"
-      - name: Skipped (no Coolify webhook yet)
-        if: ${{ env.COOLIFY_WEBHOOK == '' }}
-        run: echo "Set the COOLIFY_WEBHOOK and COOLIFY_TOKEN secrets of the staging environment to deploy."
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: staging
+      sha: ${{ github.sha }}
+    secrets: inherit
 
   # The same images staging just ran, once the `production` environment's reviewer approves.
   deploy-production:
@@ -161,7 +152,9 @@ jobs:
     if: github.event_name == 'push'
     permissions:
       contents: read
-    uses: ./.github/workflows/deploy-production.yaml
+      packages: read
+    uses: ./.github/workflows/deploy.yaml
     with:
+      environment: production
       sha: ${{ github.sha }}
     secrets: inherit
