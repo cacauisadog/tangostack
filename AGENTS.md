@@ -290,81 +290,65 @@ already wired to it. Nothing is ever delivered.
 - `backend/.env` is bind-mounted into the dev container and excluded from images
   (`.dockerignore`): production config comes from env vars.
 
-### Deployment (Coolify, one VPS)
+### Deployment (Kamal, one VPS)
 
-`docker-compose.prod.yaml` is the production stack (Coolify's Docker Compose build
-pack). It only pulls images (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, default
-`ghcr.io/cacauisadog/tangostack-*:latest`); CI builds and pushes them. Services:
+Staging and production run on one VPS (Ubuntu, Docker) deployed with
+[Kamal](https://kamal-deploy.org) 2.12. Everything is in the repository: no dashboard
+is involved besides Cloudflare DNS/SSL, Resend and GitHub.
 
-- `router`: Caddy with `deploy/Caddyfile`, the single origin (same split as
-  `caddy/Caddyfile.dev`: `/api`, `/_allauth`, `/accounts`, `/admin`, `/static` to
-  Django, the rest to the frontend). In Coolify, give **this** service the domain
-  (port 80). Coolify's proxy terminates TLS; `trusted_proxies` keeps its
-  `X-Forwarded-Proto`, otherwise Caddy rewrites it to `http` and Django stops
-  seeing HTTPS. Keep that option.
-- `migrate`: runs `manage.py migrate` to completion, then `backend` starts.
-- `backend`, `frontend`: health checks on `/api/health` (200 if the database
-  answers, 503 if not; answers for any `Host`) and `/healthz`. Memory limits are
-  1 GB and 512 MB.
-- PostgreSQL is **not** in the file: create it as a Coolify database resource
-  (scheduled backups to S3-compatible storage) and enable **Connect to predefined
-  network** on the app so `DATABASE_URL` can use the database's internal hostname.
+- **Services.** `config/deploy.backend.yml` and `config/deploy.frontend.yml`, one
+  Kamal service each, behind a single `kamal-proxy` per host. The backend serves
+  `/api`, `/_allauth`, `/accounts`, `/admin` and `/static` (path prefixes, not
+  stripped); the frontend is the root service and owns the TLS settings. Routing is
+  longest-prefix-first (kamal-proxy's `service_map.go`).
+- **Environments** are Kamal *destinations*: `-d staging|production` merges
+  `config/deploy.<service>.<destination>.yml` and reads `.kamal/secrets-common` then
+  `.kamal/secrets.<destination>`. Those files only hold variable names; the values
+  come from the environment (CI: the GitHub environment's secrets and variables;
+  locally: `deploy/deploy.sh` sources `~/.config/tangostack/<destination>.env`).
+  Staging is `staging.treinor.com.br`, production `treinor.com.br`; the host's IP
+  is the `DEPLOY_HOST` variable, kept out of the repository.
+- **Images** are built, smoke-tested (`.github/scripts/smoke-test.sh`) and pushed by
+  CI as `ghcr.io/cacauisadog/tangostack-{backend,frontend}:<full commit sha>` (also
+  `:latest`, `:sha-<short>`). Kamal deploys them with `--skip-push --version <sha>`
+  and refuses an image whose `service` label differs from its config, so the
+  Dockerfiles' prod stages carry `LABEL service=...`.
+- **Migrations** run when the backend container starts (`cmd` in the backend config),
+  before kamal-proxy switches traffic: the old version keeps serving during them, so
+  they must stay backward compatible (add, then remove later).
+- **PostgreSQL** is a Kamal accessory per environment (`tangostack-backend-<env>-db`,
+  data in the host's `.kamal` directories), reachable only by name on Kamal's docker
+  network. Kamal never updates it. Backups: `deploy/backup-db.sh` (see below).
+- **Zero downtime.** The new container must pass its health check (`/api/health`,
+  `/healthz`) before the proxy switches; the old one drains (`drain_timeout`) and is
+  stopped (`stop_timeout`).
+- **TLS** is a Cloudflare Origin CA certificate (`TLS_CERT`/`TLS_KEY`, wildcard for
+  the domain) with Cloudflare on Full (strict). Reading a PEM drops the newline after
+  its END line, which kamal-proxy rejects: `deploy/deploy.sh` restores it.
+- **Real client IPs:** `TRUSTED_CLIENT_IP_HEADER=CF-Connecting-IP` (allauth's
+  `ALLAUTH_TRUSTED_CLIENT_IP_HEADER`); only valid while every request comes through
+  Cloudflare, otherwise allauth rejects it.
 
 CI (`.github/workflows/ci.yaml`): pull requests and pushes to `main` run the backend
-checks (ruff, migrations check, pytest on a Postgres service) and the frontend
-checks (lint, format, types, tests). Playwright e2e is not in CI. A push to `main`
-that passes then builds both `prod` images (linux/amd64), starts each one
-(`.github/scripts/smoke-test.sh`: the backend against a throwaway Postgres with a real
-migration, `/api/health` and a static file; the frontend's `/healthz` and landing page)
-and only then pushes
-`ghcr.io/<owner>/tangostack-{backend,frontend}` as `:latest` and `:sha-<commit>`.
+and frontend checks (Playwright e2e is not in CI). A push to `main` that passes builds
+both images, smoke-tests them and pushes them, then `deploy-staging` and, once the
+`production` GitHub environment's required reviewer approves, `deploy-production` call
+`.github/workflows/deploy.yaml` (Kamal installed on the runner, `deploy/deploy.sh`).
+**Rollback** (either environment): Actions > Deploy > Run workflow with the
+environment and an older full commit sha. Each GitHub environment needs the variables
+`DEPLOY_HOST`, `APP_HOST` and the secrets `SSH_PRIVATE_KEY`, `SECRET_KEY`,
+`DATABASE_URL`, `POSTGRES_PASSWORD`, `EMAIL_PASSWORD`, `DEFAULT_FROM_EMAIL`,
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TLS_CERT`, `TLS_KEY`
+(`deploy.yaml` lists them). Actions are pinned to commit SHAs; bump them by hand.
 
-Environments are trunk-based: every push to `main` deploys **staging** (the
-`staging` GitHub environment; its `COOLIFY_WEBHOOK` secret, from the app's Webhooks
-page, and `COOLIFY_TOKEN`, an API token with Deploy permission; staging follows
-`:latest`). Then `deploy-production.yaml` promotes the **same images** to
-production once the `production` environment's required reviewer approves: it sets
-`BACKEND_IMAGE`/`FRONTEND_IMAGE` on the production app to `:sha-<7 chars>` through
-Coolify's API (`PATCH /applications/{uuid}/envs`, which only updates variables that
-already exist: create both once by hand), then `POST /deploy?uuid=`. The
-`production` environment needs the secret `COOLIFY_TOKEN` (write + deploy
-permissions) and the variables `COOLIFY_URL` (e.g. `https://coolify.example.com`)
-and `COOLIFY_APP_UUID`. **Rollback:** Actions > Deploy production > Run workflow with
-an older commit sha. Don't edit the production image variables by hand. Coolify
-checks out the compose file and `deploy/Caddyfile` from `main`'s latest commit, so
-promoting an old sha after changing those files mixes versions. Actions are
-pinned to commit SHAs; bump them by hand.
-After the first push, check the GHCR packages' visibility: a private package needs
-`docker login ghcr.io` on the VPS.
+First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` user,
+swap, fail2ban, unattended upgrades, SSH lockdown), then
+`deploy/deploy.sh <environment> <sha> --first` (boots the proxy and the database).
+Logs: `kamal app logs -c config/deploy.backend.yml -d staging`. Django hides 500
+tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
 
-Required variables (`${VAR:?}` stops the deploy when missing): `SECRET_KEY`,
-`DATABASE_URL`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` (with `https://`),
-`EMAIL_HOST`, `EMAIL_USERNAME`, `EMAIL_PASSWORD`, `DEFAULT_FROM_EMAIL`. Optional:
-`WEB_CONCURRENCY` (2), `EMAIL_PORT`/`EMAIL_USE_SSL`/`EMAIL_USE_TLS` (STARTTLS on
-587; for 465 set `EMAIL_USE_SSL=true` and `EMAIL_USE_TLS=false`),
-`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. `BEHIND_PROXY` and
-`SESSION_COOKIE_SECURE` are fixed to `true` in the file.
-
-Tested locally with the prod images and a throwaway Postgres: everything healthy,
-routing, bad host rejected, migration before the backend. Not tested: Coolify
-itself. If it reports the app unhealthy because `migrate` exited, add
-`exclude_from_hc: true` to that service in Coolify (a Coolify-only key that plain
-`docker compose` rejects). The router sends `/static` to Django, where WhiteNoise
-serves it (checked: hashed files are immutable-cached and gzipped).
-
-Several stacks on one server: Coolify's predefined network is shared by all of
-them, so a bare service name (`backend`) resolves to every stack's backend and
-staging/production would serve each other's requests (seen: the prod backend
-rejecting `Host: staging...`). The router therefore reaches the backend and
-frontend through aliases that include `COOLIFY_RESOURCE_UUID`
-(`BACKEND_HOST`/`FRONTEND_HOST` in `deploy/Caddyfile`). Keep any new
-service-to-service address unique per stack the same way.
-
-Real client IPs:
-set `TRUSTED_CLIENT_IP_HEADER=CF-Connecting-IP` in Coolify once Cloudflare's
-proxy is on for the domain (it becomes allauth's `ALLAUTH_TRUSTED_CLIENT_IP_HEADER`).
-Leave it unset when requests don't all come through Cloudflare: allauth rejects
-requests that lack the header.
+Several apps on one host must not share a name: container names carry the
+destination, and the two databases are named per environment on purpose.
 
 ## Commands (run from the repository root)
 

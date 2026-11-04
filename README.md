@@ -52,7 +52,8 @@ contract.
 │   └── allauth/             Copy of allauth's shipped spec
 ├── caddy/Caddyfile.dev    Local HTTPS proxy routing
 ├── docker-compose.yaml    postgres, caddy, and the dev backend/frontend containers
-├── docker-compose.prod.yaml  production stack (Coolify) and deploy/Caddyfile, its router
+├── config/                Kamal deploy configs (backend, frontend, per environment)
+├── deploy/                deploy.sh, bootstrap-server.sh (see AGENTS.md > Deployment)
 ├── Makefile               Every common command (make help)
 ├── dkdata/                Git-ignored: Postgres data, Caddy certificates
 ├── AGENTS.md              Repository-wide conventions and workflow
@@ -110,7 +111,7 @@ Run everything from the repository root; `make help` lists all targets.
 | Frontend checks               | `make fe-check` (lint, format, types, tests) |
 | End-to-end tests (real stack) | `make fe-e2e` (needs `make db-up`)           |
 | Export contract + regenerate  | `make api-generate`                          |
-| Production images             | `make build-prod` (stack: `docker-compose.prod.yaml`) |
+| Production images             | `make build-prod` |
 | Read the emails the app sends | <http://localhost:8025> (Mailpit, `make mailpit`) |
 | Metrics and logs dashboards   | <http://localhost:3001> (Grafana, `make obs`; see backend README) |
 
@@ -136,10 +137,10 @@ Backend tests fail if `openapi/` is stale, so a forgotten export can't be commit
 Both `backend/Dockerfile` and `frontend/Dockerfile` are multi-stage with two
 targets: `prod` (the default, minimal, non-root) and `dev` (what
 `docker-compose.yaml` runs). `make build-prod` builds the production images
-(about 290 MB backend, 160 MB frontend). The backend does not migrate on start:
-run `manage.py migrate` as a separate release step. The hosting platform is not
-decided yet; see "Containers" in [`AGENTS.md`](AGENTS.md) for what is and isn't
-settled.
+(about 290 MB backend, 160 MB frontend). The backend image does not migrate by
+itself: in production the container's start command does, before traffic switches.
+Staging and production run on one VPS and are deployed with Kamal from CI; see
+"Deployment" in [`AGENTS.md`](AGENTS.md).
 
 ## Documentation map
 

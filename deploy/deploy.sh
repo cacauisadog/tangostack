@@ -19,6 +19,11 @@ if [ -f "$env_file" ]; then set -a; . "$env_file"; set +a; fi
 export KAMAL_REGISTRY_PASSWORD="${KAMAL_REGISTRY_PASSWORD:-$(gh auth token)}"
 export SSH_KEY_FILE="${SSH_KEY_FILE:-$HOME/.ssh/hostinger_deploy_user}"
 : "${DEPLOY_HOST:?}" "${APP_HOST:?}"
+# Reading a PEM from a file or a CI secret drops the newline after its END line,
+# and kamal-proxy then can't load it.
+TLS_CERT="${TLS_CERT%$'\n'}"$'\n'
+TLS_KEY="${TLS_KEY%$'\n'}"$'\n'
+export TLS_CERT TLS_KEY
 
 kamal="${KAMAL:-kamal}"
 backend=(-c config/deploy.backend.yml -d "$dest")
