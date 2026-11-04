@@ -6,6 +6,14 @@ on:
   pull_request:
   push:
     branches: [main]
+  # `make deploy` triggers this to build the images of a commit that has none
+  # (checks, smoke test and push; no `latest` tag, no deploy).
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit sha to check and build
+        required: true
+        type: string
 
 # Nothing gets more than read access unless a job asks for it.
 permissions:
@@ -13,7 +21,7 @@ permissions:
 
 # A newer push cancels the checks still running for the same branch or PR.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ inputs.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -37,6 +45,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha || github.sha }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
@@ -56,6 +66,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha || github.sha }}
       # the pnpm version comes from `packageManager` in package.json
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -74,8 +86,8 @@ jobs:
 
   images:
     name: Build and push ${{ matrix.name }}
-    # only the main branch publishes; pull requests stop after the checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # only the main branch (and a manual build of a chosen commit) publishes; pull requests stop after the checks
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     needs: [backend, frontend]
     runs-on: ubuntu-latest
     permissions:
@@ -87,9 +99,19 @@ jobs:
         name: [backend, frontend]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha || github.sha }}
       # registry paths must be lowercase
       - id: owner
         run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      # the commit being built: the pushed one, or the one a manual run asked for
+      - id: commit
+        env:
+          SHA: ${{ inputs.sha || github.sha }}
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "sha must be 40 hex characters" >&2; exit 1; }
+          echo "full=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short=${SHA:0:7}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -101,10 +123,13 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ steps.owner.outputs.name }}/tangostack-${{ matrix.name }}
+          # a manual build of an older commit must not move `latest`
           tags: |
-            type=raw,value=latest
-            type=sha,format=short
-            type=sha,format=long,prefix=
+            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
+            type=raw,value=sha-${{ steps.commit.outputs.short }}
+            type=raw,value=${{ steps.commit.outputs.full }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.commit.outputs.full }}
       # Build once into the local image store and run it before anything is pushed
       # (.github/scripts/smoke-test.sh); the push below reuses these layers.
       - name: Build for the smoke test

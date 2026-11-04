@@ -341,10 +341,13 @@ environment and an older full commit sha. Each GitHub environment needs the vari
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TLS_CERT`, `TLS_KEY`
 (`deploy.yaml` lists them). Actions are pinned to commit SHAs; bump them by hand.
 
-By hand: `make deploy env=staging|production [sha=<full sha>]` (HEAD by default; it
-checks that CI built the images and asks before deploying production) and
-`make deploy-logs env=... [svc=frontend] [lines=N]`. Rolling back is `make deploy` with
-an older sha. Both need `~/.config/tangostack/<environment>.env`.
+By hand: `make deploy env=staging|production` deploys HEAD. `make deploy env=... rollback`
+lists the last 10 commits (number, ✓/✗ for built images, sha, date, message) and
+deploys the one you type. `sha=<full sha>` is for anything older. If the commit has
+no images, it offers to build them through CI's manual trigger (`workflow_dispatch`:
+checks, smoke test, push without `latest`, no deploy), waits, then deploys. Production
+asks `[y/N]`. Logs: `make deploy-logs env=... [svc=frontend] [lines=N]`. Both need
+`~/.config/tangostack/<environment>.env` and `gh` logged in. The logic is `deploy/release.sh`.
 
 First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` user,
 swap, fail2ban, unattended upgrades, SSH lockdown), then

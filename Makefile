@@ -10,7 +10,7 @@ GHCR = ghcr.io/cacauisadog/tangostack
 .PHONY: help db-up db-down mailpit obs obs-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
 	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
-	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs
+	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs rollback
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -165,14 +165,13 @@ api-generate: api-export fe-api-generate ## Export the OpenAPI schema, then rege
 
 fe-check: fe-lint fe-format-check fe-typecheck fe-test ## Run all frontend checks
 
-deploy: ## Deploy to staging or production (required: env=staging|production; optional: sha=<full commit sha>, default HEAD)
-	@case "$(env)" in staging|production) ;; *) echo "Usage: make deploy env=staging|production [sha=<full commit sha>]"; exit 1;; esac
-	@sha="$(or $(sha),$(shell git rev-parse HEAD))"; \
-	for image in backend frontend; do \
-		docker manifest inspect $(GHCR)-$$image:$$sha >/dev/null 2>&1 || { echo "No $$image image for $$sha: wait for CI to build that commit, or pass sha=<an earlier one>."; exit 1; }; \
-	done; \
-	if [ "$(env)" = production ]; then read -r -p "Deploy $$sha to PRODUCTION? [y/N] " answer; [ "$$answer" = y ] || { echo aborted; exit 1; }; fi; \
-	KAMAL=$(KAMAL) deploy/deploy.sh $(env) $$sha
+deploy: ## Deploy to staging or production (required: env=staging|production; optional: `rollback` to pick from the last 10 commits, or sha=<full commit sha>; default HEAD)
+	@case "$(env)" in staging|production) ;; *) echo "Usage: make deploy env=staging|production [rollback | sha=<full commit sha>]"; exit 1;; esac
+	@GHCR=$(GHCR) KAMAL=$(KAMAL) deploy/release.sh $(env) $(if $(filter rollback,$(MAKECMDGOALS)),--rollback,$(sha))
+
+# `make deploy env=staging rollback`: the bare word is this no-op goal, deploy/release.sh does the picking
+rollback:
+	@:
 
 deploy-logs: ## Follow-less log tail of a deployed service (required: env=; optional: svc=backend|frontend, lines=100)
 	@test -n "$(env)" || { echo "Usage: make deploy-logs env=staging|production [svc=backend|frontend] [lines=100]"; exit 1; }
