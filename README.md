@@ -139,7 +139,7 @@ targets: `prod` (the default, minimal, non-root) and `dev` (what
 `docker-compose.yaml` runs). `make build-prod` builds the production images
 (about 290 MB backend, 160 MB frontend). The backend image does not migrate by
 itself: in production the container's start command does, before traffic switches.
-Staging and production run on one VPS and are deployed with Kamal from CI; see
+Staging and production run on one VPS and are deployed with Kamal (`make deploy`); see
 "Deployment" in [`AGENTS.md`](AGENTS.md).
 
 ## Documentation map

@@ -1,5 +1,6 @@
 # Checks on every pull request and push to main. Pushes to main also publish the
-# production images to GHCR and deploy them with Kamal (see "Deployment" in AGENTS.md).
+# production images to GHCR; `make deploy` deploys them with Kamal (see "Deployment"
+# in AGENTS.md).
 name: CI
 
 on:
@@ -156,30 +157,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
 
-  deploy-staging:
-    name: Deploy to staging
+  # Private packages get 500 MB on the free plan: keep the newest tags, drop the rest.
+  # An older commit that gets deleted here is rebuilt by `make deploy ... rollback`.
+  prune:
+    name: Prune old images
     needs: images
-    # pull requests only run the checks above
     if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
-    uses: ./.github/workflows/deploy.yaml
-    with:
-      environment: staging
-      sha: ${{ github.sha }}
-    secrets: inherit
-
-  # The same images staging just ran, once the `production` environment's reviewer approves.
-  deploy-production:
-    name: Deploy to production
-    needs: deploy-staging
-    if: github.event_name == 'push'
-    permissions:
-      contents: read
-      packages: read
-    uses: ./.github/workflows/deploy.yaml
-    with:
-      environment: production
-      sha: ${{ github.sha }}
-    secrets: inherit
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: bash .github/scripts/prune-images.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP: 10

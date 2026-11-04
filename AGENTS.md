@@ -304,8 +304,8 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
 - **Environments** are Kamal *destinations*: `-d staging|production` merges
   `config/deploy.<service>.<destination>.yml` and reads `.kamal/secrets-common` then
   `.kamal/secrets.<destination>`. Those files only hold variable names; the values
-  come from the environment (CI: the GitHub environment's secrets and variables;
-  locally: `deploy/deploy.sh` sources `~/.config/tangostack/<destination>.env`).
+  come from the environment (`deploy/deploy.sh` sources
+  `~/.config/tangostack/<destination>.env`).
   Staging is `staging.treinor.com.br`, production `treinor.com.br`; the host's IP
   is the `DEPLOY_HOST` variable, kept out of the repository.
 - **Images** are built, smoke-tested (`.github/scripts/smoke-test.sh`) and pushed by
@@ -331,15 +331,12 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
 
 CI (`.github/workflows/ci.yaml`): pull requests and pushes to `main` run the backend
 and frontend checks (Playwright e2e is not in CI). A push to `main` that passes builds
-both images, smoke-tests them and pushes them, then `deploy-staging` and, once the
-`production` GitHub environment's required reviewer approves, `deploy-production` call
-`.github/workflows/deploy.yaml` (Kamal installed on the runner, `deploy/deploy.sh`).
-**Rollback** (either environment): Actions > Deploy > Run workflow with the
-environment and an older full commit sha. Each GitHub environment needs the variables
-`DEPLOY_HOST`, `APP_HOST` and the secrets `SSH_PRIVATE_KEY`, `SECRET_KEY`,
-`DATABASE_URL`, `POSTGRES_PASSWORD`, `EMAIL_PASSWORD`, `DEFAULT_FROM_EMAIL`,
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TLS_CERT`, `TLS_KEY`
-(`deploy.yaml` lists them). Actions are pinned to commit SHAs; bump them by hand.
+both images, smoke-tests them and pushes them; `prune` then deletes all but the
+newest 10 tagged versions (`.github/scripts/prune-images.sh`; the free plan has
+500 MB for private packages). CI does not deploy: private repos on the free plan
+have no environment approval gates, so deploying is `make deploy` from the laptop,
+with the secrets in `~/.config/tangostack/<env>.env`. Actions are pinned to commit
+SHAs; bump them by hand.
 
 By hand: `make deploy env=staging|production` deploys HEAD. `make deploy env=... rollback`
 lists the last 10 commits (number, ✓/✗ for built images, sha, date, message) and
