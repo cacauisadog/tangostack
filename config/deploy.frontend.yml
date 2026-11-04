@@ -1,0 +1,41 @@
+# Kamal deploy of the TanStack Start frontend: the root service on the host, so it
+# receives everything the backend's path prefixes don't (see deploy.backend.yml)
+# and owns the TLS settings. Destinations: deploy.frontend.<destination>.yml.
+service: tangostack-frontend
+image: cacauisadog/tangostack-frontend
+
+servers:
+  web:
+    - <%= ENV.fetch("DEPLOY_HOST") %>
+
+registry:
+  server: ghcr.io
+  username: cacauisadog
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: deploy
+  keys_only: true
+  keys:
+    - <%= ENV.fetch("SSH_KEY_FILE") %>
+
+builder:
+  arch: amd64
+
+# Cloudflare (Full strict) connects over HTTPS: use a Cloudflare Origin CA
+# certificate for the domains (TLS_CERT / TLS_KEY secrets).
+proxy:
+  host: <%= ENV.fetch("APP_HOST") %>
+  app_port: 3000
+  ssl:
+    certificate_pem: TLS_CERT
+    private_key_pem: TLS_KEY
+  forward_headers: true
+  healthcheck:
+    path: /healthz
+    interval: 2
+    timeout: 5
+
+drain_timeout: 30
+stop_timeout: 35

@@ -1,0 +1,81 @@
+# Kamal deploy of the Django backend (see "Deployment" in AGENTS.md). One of two
+# services on the same host: the frontend (deploy.frontend.yml) answers everything
+# the backend doesn't. Destinations (-d staging / -d production) override per
+# environment: deploy.backend.<destination>.yml. Images are built and smoke-tested
+# by CI, so deploys use `--skip-push --version=<commit sha>`.
+service: tangostack-backend
+image: cacauisadog/tangostack-backend
+
+servers:
+  web:
+    - <%= ENV.fetch("DEPLOY_HOST") %>
+
+registry:
+  server: ghcr.io
+  username: cacauisadog
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: deploy
+  keys_only: true
+  keys:
+    - <%= ENV.fetch("SSH_KEY_FILE") %>
+
+builder:
+  arch: amd64
+
+# Same routing as the Caddy router had: these paths go to Django, the rest to the
+# frontend. TLS belongs to the root service (the frontend).
+proxy:
+  host: <%= ENV.fetch("APP_HOST") %>
+  app_port: 8000
+  path_prefixes:
+    - /api
+    - /_allauth
+    - /accounts
+    - /admin
+    - /static
+  strip_path_prefix: false
+  forward_headers: true
+  healthcheck:
+    path: /api/health
+    interval: 2
+    timeout: 5
+
+drain_timeout: 30
+stop_timeout: 35
+
+env:
+  clear:
+    BEHIND_PROXY: "true"
+    SESSION_COOKIE_SECURE: "true"
+    WEB_CONCURRENCY: "2"
+    TRUSTED_CLIENT_IP_HEADER: CF-Connecting-IP
+    ALLOWED_HOSTS: <%= ENV.fetch("APP_HOST") %>
+    CSRF_TRUSTED_ORIGINS: https://<%= ENV.fetch("APP_HOST") %>
+    EMAIL_HOST: smtp.resend.com
+    EMAIL_USERNAME: resend
+  secret:
+    - SECRET_KEY
+    - DATABASE_URL
+    - EMAIL_PASSWORD
+    - DEFAULT_FROM_EMAIL
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+
+# PostgreSQL runs next to the app, on Kamal's docker network, reachable only by
+# container name (tangostack-backend-<destination>-db). Kamal never updates it on a
+# deploy. Backups: deploy/backup-db.sh.
+accessories:
+  db:
+    image: postgres:18.6
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    env:
+      clear:
+        POSTGRES_USER: tangostack
+        POSTGRES_DB: tangostack
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql

@@ -1,0 +1,2 @@
+# Production: its own container names, database and secrets (.kamal/secrets.production).
+service: tangostack-frontend-production
