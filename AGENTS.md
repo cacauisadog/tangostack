@@ -318,7 +318,7 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
   they must stay backward compatible (add, then remove later).
 - **PostgreSQL** is a Kamal accessory per environment (`tangostack-backend-<env>-db`,
   data in the host's `.kamal` directories), reachable only by name on Kamal's docker
-  network. Kamal never updates it. Backups: `deploy/backup-db.sh` (see below).
+  network. Kamal never updates it. Backups: `deploy/backup-db.sh` (see "Backups" below).
 - **Zero downtime.** The new container must pass its health check (`/api/health`,
   `/healthz`) before the proxy switches; the old one drains (`drain_timeout`) and is
   stopped (`stop_timeout`).
@@ -345,6 +345,14 @@ no images, it offers to build them through CI's manual trigger (`workflow_dispat
 checks, smoke test, push without `latest`, no deploy), waits, then deploys. Production
 asks `[y/N]`. Logs: `make deploy-logs env=... [svc=frontend] [lines=N]`. Both need
 `~/.config/tangostack/<environment>.env` and `gh` logged in. The logic is `deploy/release.sh`.
+
+Backups: `deploy/backup-db.sh <env>` runs from the `deploy` user's cron at 03:17
+(staging) and 03:47 (production) UTC, `pg_dump`s into
+`s3://tangostack/backups/<env>/` on Cloudflare R2 and logs to `~/backup.log`.
+Credentials: `~/.backup.env` on the server (mode 600, bucket-scoped token). The bucket's
+lifecycle and lock rules do the retention; the script never deletes. Restore:
+download the dump, `pg_restore --no-owner -d <db> <file>` (tested into a throwaway
+Postgres). To change the script, copy it to `/home/deploy/backup-db.sh`.
 
 First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` user,
 swap, fail2ban, unattended upgrades, SSH lockdown), then
