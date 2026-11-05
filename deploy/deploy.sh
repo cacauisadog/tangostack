@@ -25,8 +25,8 @@ TLS_KEY="${TLS_KEY%$'\n'}"$'\n'
 export TLS_CERT TLS_KEY
 
 kamal="${KAMAL:-kamal}"
-backend=(-c config/deploy.backend.yml -d "$dest")
-frontend=(-c config/deploy.frontend.yml -d "$dest")
+backend=(-c deploy/config/deploy.backend.yml -d "$dest")
+frontend=(-c deploy/config/deploy.frontend.yml -d "$dest")
 
 if [ "$first" = "--first" ]; then
   "$kamal" proxy boot "${backend[@]}"

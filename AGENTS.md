@@ -296,13 +296,13 @@ Staging and production run on one VPS (Ubuntu, Docker) deployed with
 [Kamal](https://kamal-deploy.org) 2.12. Everything is in the repository: no dashboard
 is involved besides Cloudflare DNS/SSL, Resend and GitHub.
 
-- **Services.** `config/deploy.backend.yml` and `config/deploy.frontend.yml`, one
+- **Services.** `deploy/config/deploy.backend.yml` and `deploy/config/deploy.frontend.yml`, one
   Kamal service each, behind a single `kamal-proxy` per host. The backend serves
   `/api`, `/_allauth`, `/accounts`, `/admin` and `/static` (path prefixes, not
   stripped); the frontend is the root service and owns the TLS settings. Routing is
   longest-prefix-first (kamal-proxy's `service_map.go`).
 - **Environments** are Kamal *destinations*: `-d staging|production` merges
-  `config/deploy.<service>.<destination>.yml` and reads `.kamal/secrets-common` then
+  `deploy/config/deploy.<service>.<destination>.yml` and reads `.kamal/secrets-common` then
   `.kamal/secrets.<destination>`. Those files only hold variable names; the values
   come from the environment (`deploy/deploy.sh` sources
   `~/.config/tangostack/<destination>.env`, which must also set `SSH_KEY_FILE`, the
@@ -374,7 +374,7 @@ First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` use
 swap, fail2ban, unattended upgrades, SSH lockdown), then
 `deploy/deploy.sh <environment> <sha> --first` (boots the proxy, the database and
 Valkey). An environment created before Valkey existed needs it once:
-`deploy/with-env.sh <env> "$(command -v kamal || echo ~/.gem/ruby/*/bin/kamal)" accessory boot valkey -c config/deploy.backend.yml -d <env>`
+`deploy/with-env.sh <env> "$(command -v kamal || echo ~/.gem/ruby/*/bin/kamal)" accessory boot valkey -c deploy/config/deploy.backend.yml -d <env>`
 (with `VALKEY_PASSWORD` in `~/.config/tangostack/<env>.env`).
 Logs: `make deploy-logs env=staging svc=worker`. Django hides 500
 tracebacks with DEBUG off unless the console logging in `settings.py` is kept.

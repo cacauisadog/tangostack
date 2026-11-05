@@ -53,8 +53,7 @@ contract.
 ├── dev/caddy/Caddyfile    Local HTTPS proxy routing (dev only)
 ├── observability/         OTel collector, Prometheus, Loki, Grafana configs
 ├── docker-compose.yaml    postgres, caddy, and the dev backend/frontend containers
-├── config/                Kamal deploy configs (backend, frontend, per environment)
-├── deploy/                deploy.sh, bootstrap-server.sh (see AGENTS.md > Deployment)
+├── deploy/                Deploy scripts and the Kamal configs in deploy/config/ (see AGENTS.md > Deployment)
 ├── Makefile               Every common command (make help)
 ├── dkdata/                Git-ignored: Postgres data, Caddy certificates
 ├── AGENTS.md              Repository-wide conventions and workflow
