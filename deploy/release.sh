@@ -76,14 +76,14 @@ case "$pick" in
 esac
 
 if ! has_images "$sha"; then
-  read -r -p "No images for ${sha:0:7}. Build them with CI now (checks included)? [y/N] " answer
+  read -r -p "No images for $(git show -s --format='%h %s' "$sha"). Build them with CI now (checks included)? [y/N] " answer
   [ "$answer" = y ] || { echo aborted; exit 1; }
   build
   has_images "$sha" || { echo "the build finished but the images aren't there" >&2; exit 1; }
 fi
 
 if [ "$env" = production ]; then
-  read -r -p "Deploy ${sha:0:7} to PRODUCTION? [y/N] " answer
+  read -r -p "Deploy [[ $(git show -s --format='%h %s' "$sha") ]] to PRODUCTION? [y/N] " answer
   [ "$answer" = y ] || { echo aborted; exit 1; }
 fi
 

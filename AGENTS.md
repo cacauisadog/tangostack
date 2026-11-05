@@ -371,7 +371,7 @@ First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` use
 swap, fail2ban, unattended upgrades, SSH lockdown), then
 `deploy/deploy.sh <environment> <sha> --first` (boots the proxy, the database and
 Valkey). An environment created before Valkey existed needs it once:
-`deploy/with-env.sh <env> kamal accessory boot valkey -c config/deploy.backend.yml -d <env>`
+`deploy/with-env.sh <env> "$(command -v kamal || echo ~/.gem/ruby/*/bin/kamal)" accessory boot valkey -c config/deploy.backend.yml -d <env>`
 (with `VALKEY_PASSWORD` in `~/.config/tangostack/<env>.env`).
 Logs: `make deploy-logs env=staging svc=worker`. Django hides 500
 tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
