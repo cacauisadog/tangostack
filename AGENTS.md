@@ -363,6 +363,38 @@ tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
 Several apps on one host must not share a name: container names carry the
 destination, and the two databases are named per environment on purpose.
 
+## Email delivery (Celery)
+
+Email is sent in the background: Celery with Valkey as the broker. allauth's adapter
+(`accounts/adapter.py`) renders every email it sends and calls `queue_email`
+(`core/tasks.py`), which enqueues the `core.send_email` task once the transaction
+commits. The code is the same in every environment; what differs is the setup:
+
+- **Local:** the Valkey service is in `docker-compose.yaml`; you start a worker yourself
+  (on macOS with `--pool=threads`: the default prefork pool fails to start tasks there).
+  In tests tasks run inline (`CELERY_TASK_ALWAYS_EAGER`, see `conftest.py`): no broker
+  needed. The `broker` fixture (kombu's `memory://`, still no server) queues for real and
+  `broker.run_queued()` runs what a worker would; see `core/tests/test_queue.py`.
+- **Staging and production:** not set up yet (no Valkey accessory, no worker role in
+  the Kamal config). Until then the broker is unreachable, so every email takes the
+  first fallback below: it still goes out, synchronously, with an error logged.
+
+How it fails:
+
+- *Broker unreachable when enqueueing* (5 s connect/read timeouts): the request sends
+  the email itself, synchronously, with no retries. If the provider refuses that too it
+  is only logged, and the request still answers normally.
+- *The worker can't deliver* (provider down or refusing, e.g. an unverified sender
+  domain): the task retries 5 times with a jittered exponential backoff (about 30 s, 1,
+  2, 4, 8 min), then fails for good and is logged. There is no synchronous fallback and
+  the user isn't told; the check-your-email screen's resend button is their way out.
+- *The worker isn't running* (broker fine): enqueueing works, so nothing falls back;
+  tasks wait in the queue and are sent when a worker starts. Nothing reports it, so
+  watch that the worker is alive.
+
+Tasks use `acks_late`, so a worker that dies mid-task puts it back in the queue: they
+must be safe to run twice.
+
 ## Commands (run from the repository root)
 
 - `make api-export`: export Ninja's OpenAPI schema to `openapi/openapi.json` and copy allauth's spec to `openapi/allauth/`

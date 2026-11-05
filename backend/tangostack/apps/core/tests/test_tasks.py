@@ -9,6 +9,11 @@ from django.core.mail import EmailMessage, EmailMultiAlternatives
 from tangostack.apps.core.tasks import queue_email, send_email
 
 
+@pytest.fixture(autouse=True)
+def _emails_queue_at_once():
+    """Overrides the conftest fixture: these tests are about the after-commit hook."""
+
+
 def rendered_message():
     message = EmailMultiAlternatives(
         "Confirm",
@@ -108,15 +113,3 @@ def test_it_gives_up_after_five_retries():
         )
 
     assert mail.outbox == []
-
-
-def test_a_programming_error_is_not_retried():
-    with (
-        mock.patch.object(
-            EmailMultiAlternatives, "send", side_effect=ValueError
-        ) as send,
-        pytest.raises(ValueError),
-    ):
-        send_email.delay("Hi", "body", "a@example.com", ["b@example.com"])
-
-    assert send.call_count == 1

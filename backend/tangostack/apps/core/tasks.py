@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import socket
 import ssl
@@ -5,6 +6,9 @@ import ssl
 from celery import shared_task
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 from django.db import transaction
+from kombu.exceptions import OperationalError
+
+logger = logging.getLogger(__name__)
 
 # what Django's SMTP backend raises when the provider refuses or can't be reached
 EMAIL_ERRORS = (
@@ -46,7 +50,8 @@ def queue_email(message: EmailMessage) -> None:
     """Hands a rendered email to the worker, once the current transaction commits.
 
     Waiting for the commit means a request that rolls back (a failed signup) sends
-    nothing, and the worker never runs ahead of data the email is about.
+    nothing, and the worker never runs ahead of data the email is about. If the broker
+    can't be reached the email is sent in-process instead.
     Attachments aren't supported: nothing we send has one.
     """
     if message.attachments:
@@ -68,4 +73,19 @@ def queue_email(message: EmailMessage) -> None:
         "content_subtype": message.content_subtype,
         "reply_to": list(message.reply_to) or None,
     }
-    transaction.on_commit(lambda: send_email.delay(**payload))
+    transaction.on_commit(lambda: _enqueue(payload))
+
+
+def _enqueue(payload):
+    try:
+        send_email.delay(**payload)
+    except OperationalError as error:
+        # The broker is down: send it from here rather than lose it. No retries this
+        # time, and a refusing provider is only logged, the user can ask again.
+        # One line, no traceback: the cause (a refused connection...) is in `error`.
+        logger.error("Queueing an email failed with: (%s); sending it directly.", error)
+        try:
+            send_email.run(**payload)
+            logger.info("Email sent directly successfully.")
+        except EMAIL_ERRORS:
+            logger.exception("Sending an email directly failed.")

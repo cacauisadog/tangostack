@@ -157,6 +157,8 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
 # Signing up (or logging in with an unverified address) sends a link and logs
 # nobody in until it is opened. Social providers that vouch for the address skip it.
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# Emails are sent by the Celery worker (see core/tasks.py).
+ACCOUNT_ADAPTER = "tangostack.apps.accounts.adapter.AccountAdapter"
 # Emails carry the product name themselves; allauth would prefix the request's host.
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
@@ -277,7 +279,12 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_SOFT_TIME_LIMIT = 60
 CELERY_TASK_TIME_LIMIT = 90
 # Redis re-delivers a task that wasn't acknowledged within this time.
-CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 3600}
+# A broker that doesn't answer must fail fast: the web request is the one enqueueing.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 3600,
+    "socket_connect_timeout": 5,
+    "socket_timeout": 5,
+}
 # Keep retrying the broker connection while the worker starts before the broker.
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
@@ -286,14 +293,20 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # LOGGING
 # Django's default prints errors to the console only while DEBUG is on, and
 # otherwise emails ADMINS (none here), so a production 500 left no traceback at all.
-# Log to the console always; the platform collects it (and telemetry.py forwards it).
+# Log to the console always, for Django and for our own code; the platform collects it
+# (and telemetry.py forwards it).
 # ==============================================================================
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {"plain": {"format": "{levelname} {name}: {message}", "style": "{"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
-    "loggers": {"django": {"handlers": ["console"], "level": "INFO"}},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO"},
+        # our own code (tasks, fallbacks...): without this, its logs only reach the
+        # console when nothing else (OpenTelemetry) is attached to the root logger
+        "tangostack": {"handlers": ["console"], "level": "INFO"},
+    },
 }
 
 

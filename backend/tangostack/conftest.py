@@ -1,8 +1,12 @@
+from types import SimpleNamespace
+
 import pytest
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client
+
+from tangostack.celery import app as celery_app
 
 
 @pytest.fixture(autouse=True)
@@ -18,6 +22,60 @@ def _tasks_run_inline(settings):
     raises. (The Celery app reads these from the Django settings.)"""
     settings.CELERY_TASK_ALWAYS_EAGER = True
     settings.CELERY_TASK_EAGER_PROPAGATES = True
+
+
+@pytest.fixture(autouse=True)
+def _emails_queue_at_once(monkeypatch):
+    """Tests run inside a transaction that never commits, so `queue_email`'s
+    after-commit hook would never fire: run it right away. (The tests of that hook
+    itself override this fixture.)"""
+    monkeypatch.setattr(
+        "tangostack.apps.core.tasks.transaction",
+        SimpleNamespace(on_commit=lambda function: function()),
+    )
+
+
+@pytest.fixture
+def broker(settings, monkeypatch):
+    """Real queueing instead of running tasks inline, on kombu's in-memory broker (no
+    server needed). `broker.run_queued()` then does what a worker does: take each
+    message off the queue and run its task. Tasks run in the test's thread, so they
+    can use the database."""
+    settings.CELERY_TASK_ALWAYS_EAGER = False
+    # the environment variable beats the Django setting inside Celery
+    monkeypatch.setenv("CELERY_BROKER_URL", "memory://")
+    settings.CELERY_BROKER_TRANSPORT_OPTIONS = {}  # Redis-only options
+    queue = celery_app.amqp.queues[celery_app.conf.task_default_queue]
+
+    def reset():
+        # the app keeps the connection it first published with: make it reconnect
+        celery_app._after_fork()
+        with celery_app.connection_for_write() as connection:
+            connection.SimpleQueue(queue).clear()
+
+    class Broker:
+        @staticmethod
+        def run_queued():
+            """Runs and acknowledges everything queued; returns the task names."""
+            names = []
+            with (
+                celery_app.connection_for_read() as connection,
+                connection.SimpleQueue(queue) as simple_queue,
+            ):
+                while True:
+                    try:
+                        message = simple_queue.get(block=False)
+                    except simple_queue.Empty:
+                        return names
+                    args, kwargs, _ = message.payload
+                    name = message.headers["task"]
+                    celery_app.tasks[name].apply(args=args, kwargs=kwargs, throw=True)
+                    message.ack()
+                    names.append(name)
+
+    reset()
+    yield Broker
+    reset()
 
 
 SILK = "silk.middleware.SilkyMiddleware"
