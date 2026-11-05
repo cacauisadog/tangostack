@@ -17,6 +17,22 @@ services:
       timeout: 3s
       retries: 15
 
+  # The Celery broker (Valkey speaks the Redis protocol). Append-only persistence keeps
+  # queued tasks (emails) across restarts.
+  valkey:
+    image: valkey/valkey:9.1.3
+    container_name: tangostack__valkey
+    command: ["valkey-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./dkdata/valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   # Catches all outgoing email (SMTP :1025) and shows it at http://localhost:8025.
   # Nothing is ever delivered. The e2e twin has its own ports so tests can empty
   # their inbox without touching the dev one.
