@@ -68,7 +68,7 @@ Node 26+ and pnpm (the version pinned in `frontend/package.json`).
 ```bash
 make fe-install                       # frontend dependencies
 cp backend/.env.example backend/.env  # local settings (git-ignored)
-make db-up mailpit                    # PostgreSQL + Mailpit (catches outgoing email)
+make db-up mailpit celery             # PostgreSQL, Mailpit (catches outgoing email), Valkey + the Celery worker (sends it)
 make migrate && make superuser        # schema + an admin user
 ```
 

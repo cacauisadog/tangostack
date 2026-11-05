@@ -9,7 +9,7 @@ GHCR = ghcr.io/cacauisadog/tangostack
 
 .PHONY: help db-up db-down mailpit obs obs-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
-	fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
+	celery celery-logs fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
 	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs rollback
 
 help: ## Show this help
@@ -22,6 +22,12 @@ db-up: ## Start PostgreSQL
 mailpit: ## Start Mailpit, which catches outgoing email (http://localhost:8025)
 	docker compose up -d mailpit
 
+celery: ## Start Valkey and the Celery worker (sends the emails), for `make run` or `make up`
+	docker compose up -d valkey worker
+
+celery-logs: ## Follow the Celery worker's logs
+	docker compose logs -f worker
+
 db-down: ## Stop the containers (same as `make down`)
 	docker compose --profile observability down
 
@@ -31,21 +37,21 @@ obs: ## Start the observability stack (OTel collector, Prometheus, Loki, Grafana
 obs-down: ## Stop the observability stack (its data is kept)
 	docker compose --profile observability stop otel-collector prometheus loki grafana
 
-up: ## Start everything in containers: postgres, mailpit, backend, frontend (not the proxy)
-	docker compose up -d postgres mailpit backend frontend
+up: ## Start everything in containers: postgres, mailpit, valkey, backend, worker, frontend (not the proxy)
+	docker compose up -d postgres mailpit valkey backend worker frontend
 
 down: ## Stop and remove the containers, observability included (data in dkdata/ is kept)
 	docker compose --profile observability down
 
-build: ## Build the dev images of the backend and frontend
-	docker compose build backend frontend
+build: ## Build the dev images of the backend (and its worker) and frontend
+	docker compose build backend worker frontend
 
 build-prod: ## Build the production images (tangostack-backend, tangostack-frontend)
 	docker build --target prod -t tangostack-backend backend
 	docker build --target prod -t tangostack-frontend frontend
 
-logs: ## Follow the backend and frontend container logs
-	docker compose logs -f backend frontend
+logs: ## Follow the backend, worker and frontend container logs
+	docker compose logs -f backend worker frontend
 
 bash: ## Bash inside the backend container
 	docker compose exec backend bash

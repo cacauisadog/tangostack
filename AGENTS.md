@@ -242,7 +242,7 @@ Every published port in `docker-compose.yaml` is bound to `127.0.0.1`, so nothin
 (Postgres, Django, silk, Mailpit, Vite) is reachable from the LAN. Keep the
 `127.0.0.1:` prefix on new services.
 
-Daily: `make db-up mailpit proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
+Daily: `make db-up mailpit celery proxy-up`, `make run`, `make fe-dev-api` (or `make fe-dev`
 for mocks; the domain works for both).
 
 `make mailpit` starts **Mailpit**, which catches all outgoing email and shows
@@ -370,8 +370,13 @@ Email is sent in the background: Celery with Valkey as the broker. allauth's ada
 (`core/tasks.py`), which enqueues the `core.send_email` task once the transaction
 commits. The code is the same in every environment; what differs is the setup:
 
-- **Local:** the Valkey service is in `docker-compose.yaml`; you start a worker yourself
-  (on macOS with `--pool=threads`: the default prefork pool fails to start tasks there).
+- **Local:** `make celery` starts Valkey and the worker as containers (`make up` starts
+  them too; `make celery-logs` follows the worker). The worker restarts when Python
+  files change and also serves a backend run on the host with `make run`, which
+  reaches the same Valkey on `localhost:6379`. Without a running worker, emails wait
+  in the queue and never reach Mailpit. A worker on the host itself, if you ever need
+  one, needs `uv run celery -A tangostack worker --pool=threads` on macOS: the default
+  prefork pool fails to start tasks there (it works in the Linux container).
   In tests tasks run inline (`CELERY_TASK_ALWAYS_EAGER`, see `conftest.py`): no broker
   needed. The `broker` fixture (kombu's `memory://`, still no server) queues for real and
   `broker.run_queued()` runs what a worker would; see `core/tests/test_queue.py`.
