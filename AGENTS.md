@@ -305,11 +305,14 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
   `config/deploy.<service>.<destination>.yml` and reads `.kamal/secrets-common` then
   `.kamal/secrets.<destination>`. Those files only hold variable names; the values
   come from the environment (`deploy/deploy.sh` sources
-  `~/.config/tangostack/<destination>.env`).
+  `~/.config/tangostack/<destination>.env`, which must also set `SSH_KEY_FILE`, the
+  deploy user's private key). `deploy/defaults.sh` works out the rest: the registry
+  owner from the `origin` remote, the registry login from `gh`; both can be overridden
+  there (`REGISTRY_OWNER`, `REGISTRY_USER`).
   Staging is `staging.treinor.com.br`, production `treinor.com.br`; the host's IP
   is the `DEPLOY_HOST` variable, kept out of the repository.
 - **Images** are built, smoke-tested (`.github/scripts/smoke-test.sh`) and pushed by
-  CI as `ghcr.io/cacauisadog/tangostack-{backend,frontend}:<full commit sha>` (also
+  CI as `ghcr.io/<owner of the origin remote>/tangostack-{backend,frontend}:<full commit sha>` (also
   `:latest`, `:sha-<short>`). Kamal deploys them with `--skip-push --version <sha>`
   and refuses an image whose `service` label differs from its config, so the
   Dockerfiles' prod stages carry `LABEL service=...`.

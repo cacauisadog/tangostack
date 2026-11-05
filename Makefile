@@ -3,7 +3,9 @@ FE = cd frontend && pnpm
 
 # Kamal installs as a user gem (gem install kamal --user-install), often not on PATH.
 KAMAL ?= $(or $(shell command -v kamal),$(shell ruby -e 'puts Gem.user_dir')/bin/kamal)
-GHCR = ghcr.io/cacauisadog/tangostack
+# Where CI pushes the images: the owner of the `origin` remote (see deploy/defaults.sh).
+REGISTRY_OWNER ?= $(shell git remote get-url origin | sed -E 's|.*[:/]([^/]+)/[^/]+$$|\1|' | tr '[:upper:]' '[:lower:]')
+GHCR = ghcr.io/$(REGISTRY_OWNER)/tangostack
 
 .DEFAULT_GOAL := help
 

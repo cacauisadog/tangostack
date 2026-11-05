@@ -14,7 +14,7 @@ set -a
 # shellcheck disable=SC1090
 . "$env_file"
 set +a
-export KAMAL_REGISTRY_PASSWORD="${KAMAL_REGISTRY_PASSWORD:-$(gh auth token)}"
-export SSH_KEY_FILE="${SSH_KEY_FILE:-$HOME/.ssh/hostinger_deploy_user}"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/defaults.sh"
 
 exec "$@"

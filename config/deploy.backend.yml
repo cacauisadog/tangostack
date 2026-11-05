@@ -4,7 +4,7 @@
 # environment: deploy.backend.<destination>.yml. Images are built and smoke-tested
 # by CI, so deploys use `--skip-push --version=<commit sha>`.
 service: tangostack-backend
-image: cacauisadog/tangostack-backend
+image: <%= ENV.fetch("REGISTRY_OWNER") %>/tangostack-backend
 
 # The container migrates, then serves: kamal-proxy only switches traffic once the new
 # container passes its health check, i.e. after the migration finished (the old
@@ -32,7 +32,7 @@ servers:
 
 registry:
   server: ghcr.io
-  username: cacauisadog
+  username: <%= ENV.fetch("REGISTRY_USER") %>
   password:
     - KAMAL_REGISTRY_PASSWORD
 

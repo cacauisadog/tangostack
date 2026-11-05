@@ -2,7 +2,7 @@
 # receives everything the backend's path prefixes don't (see deploy.backend.yml)
 # and owns the TLS settings. Destinations: deploy.frontend.<destination>.yml.
 service: tangostack-frontend
-image: cacauisadog/tangostack-frontend
+image: <%= ENV.fetch("REGISTRY_OWNER") %>/tangostack-frontend
 
 servers:
   web:
@@ -10,7 +10,7 @@ servers:
 
 registry:
   server: ghcr.io
-  username: cacauisadog
+  username: <%= ENV.fetch("REGISTRY_USER") %>
   password:
     - KAMAL_REGISTRY_PASSWORD
 
