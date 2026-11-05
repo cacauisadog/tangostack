@@ -59,7 +59,7 @@ services:
       timeout: 3s
       retries: 15
 
-  # Catches all outgoing email (SMTP :1025) and shows it at http://localhost:8025.
+  # Catches all outgoing email (SMTP :1025) and shows it at https://dev.tangostack.com/mailpit (or http://localhost:8025/mailpit/).
   # Nothing is ever delivered. The e2e twin has its own ports so tests can empty
   # their inbox without touching the dev one.
   mailpit:
@@ -68,6 +68,8 @@ services:
     environment:
       # otherwise every connection waits ~8s for a reverse DNS lookup of the client
       MP_SMTP_DISABLE_RDNS: "true"
+      # served under /mailpit so Caddy can put it on https://dev.tangostack.com/mailpit
+      MP_WEBROOT: /mailpit/
     ports:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
@@ -137,7 +139,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./dev/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./dkdata/caddy/data:/data
       - ./dkdata/caddy/config:/config
 

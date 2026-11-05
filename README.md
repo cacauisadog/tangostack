@@ -50,7 +50,8 @@ contract.
 ├── openapi/               The API contract, committed
 │   ├── openapi.json         Ninja's schema (generated: make api-export)
 │   └── allauth/             Copy of allauth's shipped spec
-├── caddy/Caddyfile.dev    Local HTTPS proxy routing
+├── dev/caddy/Caddyfile    Local HTTPS proxy routing (dev only)
+├── observability/         OTel collector, Prometheus, Loki, Grafana configs
 ├── docker-compose.yaml    postgres, caddy, and the dev backend/frontend containers
 ├── config/                Kamal deploy configs (backend, frontend, per environment)
 ├── deploy/                deploy.sh, bootstrap-server.sh (see AGENTS.md > Deployment)
@@ -112,7 +113,7 @@ Run everything from the repository root; `make help` lists all targets.
 | End-to-end tests (real stack) | `make fe-e2e` (needs `make db-up`)           |
 | Export contract + regenerate  | `make api-generate`                          |
 | Production images             | `make build-prod` |
-| Read the emails the app sends | <http://localhost:8025> (Mailpit, `make mailpit`) |
+| Read the emails the app sends | <https://dev.tangostack.com/mailpit> (Mailpit, `make mailpit` + `make proxy-up`; or <http://localhost:8025/mailpit/>) |
 | Metrics and logs dashboards   | <http://localhost:3001> (Grafana, `make obs`; see backend README) |
 
 ### Changing the API

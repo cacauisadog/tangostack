@@ -166,7 +166,7 @@ HEADLESS_ONLY = True  # no server-rendered allauth pages
 HEADLESS_CLIENTS = ("browser",)  # the frontend is a browser; no app/token client
 
 # Frontend pages allauth links to (relative: the frontend and API share an
-# origin, see caddy/). Emails carry these links; `{key}` is filled in by allauth.
+# origin, see dev/caddy/). Emails carry these links; `{key}` is filled in by allauth.
 # The social login success URL is the `callback_url` the frontend passes when it
 # starts the flow.
 HEADLESS_FRONTEND_URLS = {
@@ -209,7 +209,7 @@ CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 # Plain SMTP through Django's MAILERS (the EMAIL_* settings are deprecated), so any
 # provider works (Resend, Brevo, Postmark, SES, ...): set the EMAIL_* environment
 # variables to the provider's SMTP credentials. Locally, Mailpit (`make db-up`)
-# catches everything at http://localhost:8025. Tests swap in Django's in-memory
+# catches everything at http://localhost:8025/mailpit/. Tests swap in Django's in-memory
 # backend automatically.
 # ==============================================================================
 # Without an explicit backend, development prints emails to the console and

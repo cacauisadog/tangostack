@@ -77,7 +77,7 @@ SQLite cannot work). From the **repository root**:
 ```bash
 cp backend/.env.example backend/.env
 make db-up         # PostgreSQL via docker compose
-make mailpit       # optional: catches outgoing email (http://localhost:8025)
+make mailpit       # optional: catches outgoing email (http://localhost:8025/mailpit/)
 make migrate
 make superuser
 make run           # http://localhost:8000
@@ -202,7 +202,7 @@ credentials and `DEFAULT_FROM_EMAIL` to an address on a domain verified with it
 (SPF, DKIM, DMARC). Nothing in the code changes.
 
 - **Locally:** `make mailpit` starts Mailpit, which catches everything at
-  <http://localhost:8025>. Point Django at it with the `EMAIL_*` lines in
+  <http://localhost:8025/mailpit/>. Point Django at it with the `EMAIL_*` lines in
   `.env.example`; without them emails print to the console.
 - **Tests:** Django's in-memory backend (`mail.outbox`). allauth rate-limits in
   the cache, so `conftest.py` clears it between tests.

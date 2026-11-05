@@ -41,7 +41,7 @@ const config = defineConfig({
   server: apiProxyTarget
     ? { hmr: false }
     : {
-        // served through Caddy at https://dev.tangostack.com (see caddy/Caddyfile.dev)
+        // served through Caddy at https://dev.tangostack.com (see dev/caddy/Caddyfile)
         allowedHosts: ["dev.tangostack.com"],
         hmr: { protocol: "wss", host: "dev.tangostack.com", clientPort: 443 },
       },

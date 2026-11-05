@@ -230,7 +230,7 @@ adding either needs approval for the new dependencies.
 
 ## Local dev stack (real backend over HTTPS)
 
-Caddy (docker compose, `caddy/Caddyfile.dev`) serves `https://dev.tangostack.com`
+Caddy (docker compose, `dev/caddy/Caddyfile`) serves `https://dev.tangostack.com`
 and proxies `/api`, `/_allauth`, `/admin`, `/static` to Django (host `:8000`) and everything
 else to Vite (host `:3000`). One origin, so no CORS.
 
@@ -246,7 +246,7 @@ Daily: `make db-up mailpit celery proxy-up`, `make run`, `make fe-dev-api` (or `
 for mocks; the domain works for both).
 
 `make mailpit` starts **Mailpit**, which catches all outgoing email and shows
-it at <http://localhost:8025> (SMTP on `:1025`). To use it from `make run`, put
+it at <https://dev.tangostack.com/mailpit> (through Caddy; directly <http://localhost:8025/mailpit/>; SMTP on `:1025`). To use it from `make run`, put
 the `EMAIL_*` lines from `backend/.env.example` in `backend/.env`; without them
 development prints emails to the console. The backend container (`make up`) is
 already wired to it. Nothing is ever delivered.

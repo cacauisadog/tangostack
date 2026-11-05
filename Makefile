@@ -21,7 +21,7 @@ help: ## Show this help
 db-up: ## Start PostgreSQL
 	docker compose up -d postgres
 
-mailpit: ## Start Mailpit, which catches outgoing email (http://localhost:8025)
+mailpit: ## Start Mailpit, which catches outgoing email (https://dev.tangostack.com/mailpit)
 	docker compose up -d mailpit
 
 celery: ## Start Valkey and the Celery worker (sends the emails), for `make run` or `make up`

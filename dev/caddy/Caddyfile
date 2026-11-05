@@ -1,4 +1,4 @@
-# Local dev proxy: https://dev.tangostack.com -> Django (API, admin, silk) and Vite (app).
+# Local dev proxy: https://dev.tangostack.com -> Django (API, admin, silk), Mailpit (/mailpit) and Vite (app).
 # Both run on the host; requires `dev.tangostack.com` in /etc/hosts -> 127.0.0.1.
 dev.tangostack.com {
 	# Certificate from Caddy's local CA; trust it once with `make proxy-trust`.
@@ -7,6 +7,12 @@ dev.tangostack.com {
 	@django path /api/* /_allauth/* /accounts/* /admin /admin/* /silk/* /static/*
 	handle @django {
 		reverse_proxy host.docker.internal:8000
+	}
+
+	# Mailpit runs as a compose service (MP_WEBROOT=/mailpit/), so Caddy reaches it by name.
+	redir /mailpit /mailpit/
+	handle /mailpit/* {
+		reverse_proxy mailpit:8025
 	}
 
 	handle {
