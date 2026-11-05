@@ -4,12 +4,22 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client
 
+from tangostack.celery import app as celery_app
+
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
     """allauth rate-limits in the cache (e.g. one confirmation email per address
     every few minutes), which would leak between tests."""
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _tasks_run_inline():
+    """Background tasks run inside the test: no broker or worker, and a failing task
+    raises."""
+    celery_app.conf.task_always_eager = True
+    celery_app.conf.task_eager_propagates = True
 
 
 SILK = "silk.middleware.SilkyMiddleware"

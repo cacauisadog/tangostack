@@ -255,6 +255,34 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
 # ==============================================================================
+# CELERY
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html
+# Background tasks (sending email) run in a separate worker process, fed through a
+# Valkey/Redis broker (`make celery`; in production a Kamal accessory plus a worker role).
+# Tasks aren't expected to return anything, so there is no result backend.
+# ==============================================================================
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+# Run tasks inside the caller instead of queueing them (no broker or worker needed).
+CELERY_TASK_ALWAYS_EAGER = config("CELERY_TASK_ALWAYS_EAGER", default=False, cast=bool)
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+# Acknowledge a task once it has run, not when it starts: a worker that dies halfway
+# puts it back in the queue (so tasks must be safe to run twice). One task reserved at
+# a time, so a long one doesn't hold others hostage behind it.
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_SOFT_TIME_LIMIT = 60
+CELERY_TASK_TIME_LIMIT = 90
+# Redis re-delivers a task that wasn't acknowledged within this time.
+CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 3600}
+# Keep retrying the broker connection while the worker starts before the broker.
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+
+# ==============================================================================
 # LOGGING
 # Django's default prints errors to the console only while DEBUG is on, and
 # otherwise emails ADMINS (none here), so a production 500 left no traceback at all.
