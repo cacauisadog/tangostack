@@ -10,8 +10,11 @@ from tangostack import telemetry
 
 def test_telemetry_is_off_by_default():
     assert settings.OTEL_ENABLED is False
-    telemetry.setup()  # a no-op: nothing from OpenTelemetry is imported
-    assert "opentelemetry.sdk.metrics" not in sys.modules
+    # a no-op: it imports nothing from OpenTelemetry (redis-py, loaded for Celery's
+    # broker, imports the SDK on its own, so look at what `setup` adds)
+    before = set(sys.modules)
+    telemetry.setup()
+    assert not [m for m in set(sys.modules) - before if m.startswith("opentelemetry")]
     assert telemetry._handler is None
     telemetry.attach_log_handler()  # also a no-op
 

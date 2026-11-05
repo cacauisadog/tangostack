@@ -4,8 +4,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import Client
 
-from tangostack.celery import app as celery_app
-
 
 @pytest.fixture(autouse=True)
 def _clear_cache():
@@ -15,11 +13,11 @@ def _clear_cache():
 
 
 @pytest.fixture(autouse=True)
-def _tasks_run_inline():
+def _tasks_run_inline(settings):
     """Background tasks run inside the test: no broker or worker, and a failing task
-    raises."""
-    celery_app.conf.task_always_eager = True
-    celery_app.conf.task_eager_propagates = True
+    raises. (The Celery app reads these from the Django settings.)"""
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_TASK_EAGER_PROPAGATES = True
 
 
 SILK = "silk.middleware.SilkyMiddleware"
