@@ -10,11 +10,25 @@ image: cacauisadog/tangostack-backend
 # container passes its health check, i.e. after the migration finished (the old
 # version keeps serving meanwhile, so migrations must stay backward compatible).
 # Keep the gunicorn part in sync with the prod stage of backend/Dockerfile.
+#
+# The worker is the same image running Celery (emails, see "Email delivery" in
+# AGENTS.md). It has no proxy, so nothing health-checks it for Kamal: the Docker health
+# command below makes `docker ps` / `kamal app details` show whether it answers.
 servers:
   web:
     hosts:
       - <%= ENV.fetch("DEPLOY_HOST") %>
     cmd: sh -c "python manage.py migrate --noinput && exec gunicorn tangostack.wsgi:application --bind 0.0.0.0:8000 --worker-class gevent --access-logfile -"
+  worker:
+    hosts:
+      - <%= ENV.fetch("DEPLOY_HOST") %>
+    cmd: celery -A tangostack worker -l info --concurrency 2 --max-memory-per-child 300000
+    proxy: false
+    options:
+      health-cmd: celery -A tangostack inspect ping -t 5
+      health-interval: 30s
+      health-timeout: 10s
+      health-start-period: 30s
 
 registry:
   server: ghcr.io
@@ -51,8 +65,10 @@ proxy:
 
 # room for a migration before the first health check passes
 deploy_timeout: 180
+# stop_timeout is longer than the worker's hard task limit (CELERY_TASK_TIME_LIMIT, 90 s)
+# so a deploy never kills a running task; containers that exit at once don't wait for it.
 drain_timeout: 30
-stop_timeout: 35
+stop_timeout: 100
 
 env:
   clear:
@@ -68,13 +84,16 @@ env:
     - SECRET_KEY
     - DATABASE_URL
     - EMAIL_PASSWORD
+    - CELERY_BROKER_URL
     - DEFAULT_FROM_EMAIL
     - GOOGLE_CLIENT_ID
     - GOOGLE_CLIENT_SECRET
 
-# PostgreSQL runs next to the app, on Kamal's docker network, reachable only by
-# container name (tangostack-backend-<destination>-db). Kamal never updates it on a
-# deploy. Backups: deploy/backup-db.sh.
+# PostgreSQL and Valkey (the Celery broker) run next to the app, on Kamal's docker
+# network, reachable only by container name (tangostack-backend-<destination>-db /
+# -valkey). Both destinations share that network, hence Valkey's password. Kamal never
+# updates the accessories on a deploy. Backups: deploy/backup-db.sh (Postgres only;
+# Valkey just holds queued tasks, persisted with AOF in its directory).
 accessories:
   db:
     image: postgres:18.6
@@ -87,3 +106,12 @@ accessories:
         - POSTGRES_PASSWORD
     directories:
       - data:/var/lib/postgresql
+  valkey:
+    image: valkey/valkey:9.1.3
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    cmd: sh -c 'exec valkey-server --appendonly yes --requirepass "$VALKEY_PASSWORD"'
+    env:
+      secret:
+        - VALKEY_PASSWORD
+    directories:
+      - valkey:/data

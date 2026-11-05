@@ -1,6 +1,8 @@
-# Production: its own database and secrets (.kamal/secrets.production); container names
+# Production: its own database, broker and secrets (.kamal/secrets.production); container names
 # already carry the destination. The accessory's name has to differ per destination
 # because both live on one host.
 accessories:
   db:
     service: tangostack-backend-production-db
+  valkey:
+    service: tangostack-backend-production-valkey

@@ -179,6 +179,6 @@ deploy: ## Deploy to staging or production (required: env=staging|production; op
 rollback:
 	@:
 
-deploy-logs: ## Follow-less log tail of a deployed service (required: env=; optional: svc=backend|frontend, lines=100)
-	@test -n "$(env)" || { echo "Usage: make deploy-logs env=staging|production [svc=backend|frontend] [lines=100]"; exit 1; }
-	deploy/with-env.sh $(env) $(KAMAL) app logs -c config/deploy.$(or $(svc),backend).yml -d $(env) --lines $(or $(lines),100)
+deploy-logs: ## Follow-less log tail of a deployed service (required: env=; optional: svc=backend|worker|frontend, lines=100)
+	@test -n "$(env)" || { echo "Usage: make deploy-logs env=staging|production [svc=backend|worker|frontend] [lines=100]"; exit 1; }
+	deploy/with-env.sh $(env) $(KAMAL) app logs -c config/deploy.$(if $(filter worker,$(svc)),backend,$(or $(svc),backend)).yml -d $(env) $(if $(filter worker,$(svc)),--roles worker,$(if $(filter frontend,$(svc)),,--roles web)) --lines $(or $(lines),100)

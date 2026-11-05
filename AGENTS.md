@@ -319,9 +319,22 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
 - **PostgreSQL** is a Kamal accessory per environment (`tangostack-backend-<env>-db`,
   data in the host's `.kamal` directories), reachable only by name on Kamal's docker
   network. Kamal never updates it. Backups: `deploy/backup-db.sh` (see "Backups" below).
+- **Valkey and the worker** (see "Email delivery"). Valkey is a second accessory
+  (`tangostack-backend-<env>-valkey`, password `VALKEY_PASSWORD` because both
+  environments share the docker network, AOF persistence in the host's `.kamal`
+  directories). The worker is a second *role* of the backend service: same image as
+  `web`, `cmd` is `celery -A tangostack worker`, no proxy, a Docker health command
+  (`celery inspect ping`) visible in `kamal app details`. `CELERY_BROKER_URL` is a
+  secret built in `.kamal/secrets.<env>` from `VALKEY_PASSWORD`.
 - **Zero downtime.** The new container must pass its health check (`/api/health`,
   `/healthz`) before the proxy switches; the old one drains (`drain_timeout`) and is
-  stopped (`stop_timeout`).
+  stopped (`stop_timeout`, 100 s: longer than a task's 90 s hard limit, so a deploy
+  doesn't kill a running task; containers that exit at once don't wait for it). The
+  worker restarts on every deploy (warm shutdown: it finishes running tasks, queued
+  ones wait in Valkey for the new worker). Web and worker briefly run different versions,
+  so a task's arguments may only grow (new ones optional with defaults, never renamed
+  or removed), and a task using new columns must tolerate a migration that hasn't
+  run yet (retry).
 - **TLS** is a Cloudflare Origin CA certificate (`TLS_CERT`/`TLS_KEY`, wildcard for
   the domain) with Cloudflare on Full (strict). Reading a PEM drops the newline after
   its END line, which kamal-proxy rejects: `deploy/deploy.sh` restores it.
@@ -343,7 +356,7 @@ lists the last 10 commits (number, ✓/✗ for built images, sha, date, message)
 deploys the one you type. `sha=<full sha>` is for anything older. If the commit has
 no images, it offers to build them through CI's manual trigger (`workflow_dispatch`:
 checks, smoke test, push without `latest`, no deploy), waits, then deploys. Production
-asks `[y/N]`. Logs: `make deploy-logs env=... [svc=frontend] [lines=N]`. Both need
+asks `[y/N]`. Logs: `make deploy-logs env=... [svc=backend|worker|frontend] [lines=N]`. Both need
 `~/.config/tangostack/<environment>.env` and `gh` logged in. The logic is `deploy/release.sh`.
 
 Backups: `deploy/backup-db.sh <env>` runs from the `deploy` user's cron at 03:17
@@ -356,8 +369,11 @@ Postgres). To change the script, copy it to `/home/deploy/backup-db.sh`.
 
 First deploy of a new server: `deploy/bootstrap-server.sh` (Docker, `deploy` user,
 swap, fail2ban, unattended upgrades, SSH lockdown), then
-`deploy/deploy.sh <environment> <sha> --first` (boots the proxy and the database).
-Logs: `kamal app logs -c config/deploy.backend.yml -d staging`. Django hides 500
+`deploy/deploy.sh <environment> <sha> --first` (boots the proxy, the database and
+Valkey). An environment created before Valkey existed needs it once:
+`deploy/with-env.sh <env> kamal accessory boot valkey -c config/deploy.backend.yml -d <env>`
+(with `VALKEY_PASSWORD` in `~/.config/tangostack/<env>.env`).
+Logs: `make deploy-logs env=staging svc=worker`. Django hides 500
 tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
 
 Several apps on one host must not share a name: container names carry the
@@ -380,9 +396,9 @@ commits. The code is the same in every environment; what differs is the setup:
   In tests tasks run inline (`CELERY_TASK_ALWAYS_EAGER`, see `conftest.py`): no broker
   needed. The `broker` fixture (kombu's `memory://`, still no server) queues for real and
   `broker.run_queued()` runs what a worker would; see `core/tests/test_queue.py`.
-- **Staging and production:** not set up yet (no Valkey accessory, no worker role in
-  the Kamal config). Until then the broker is unreachable, so every email takes the
-  first fallback below: it still goes out, synchronously, with an error logged.
+- **Staging and production:** a Valkey accessory and a `worker` role per environment
+  (see "Deployment"). Broker down means the first fallback below. The worker's logs:
+  `make deploy-logs env=... svc=worker`; its state: `kamal app details` (health).
 
 How it fails:
 
@@ -397,8 +413,10 @@ How it fails:
   tasks wait in the queue and are sent when a worker starts. Nothing reports it, so
   watch that the worker is alive.
 
-Tasks use `acks_late`, so a worker that dies mid-task puts it back in the queue: they
-must be safe to run twice.
+Tasks use `acks_late`, so a task whose worker dies is run again: they must be safe to
+run twice. With Valkey as the broker that happens when the worker shuts down cleanly,
+but after a SIGKILL only once the visibility timeout (1 hour) passes: the email is late,
+not lost.
 
 ## Commands (run from the repository root)
 
