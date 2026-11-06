@@ -3,10 +3,16 @@
 # in AGENTS.md).
 name: CI
 
+# Only changes that can end up in an image or change a check start it (the image build
+# contexts are backend/ and frontend/): observability configs, deploy scripts, docs
+# and the like don't. A commit without images is built on demand by `make deploy`
+# (workflow_dispatch below, which has no path filter).
 on:
   pull_request:
+    paths: [backend/**, frontend/**, .github/**]
   push:
     branches: [main]
+    paths: [backend/**, frontend/**, .github/**]
   # `make deploy` triggers this to build the images of a commit that has none
   # (checks, smoke test and push; no `latest` tag, no deploy).
   workflow_dispatch:
