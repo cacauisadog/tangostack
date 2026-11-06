@@ -1,4 +1,6 @@
-# Single-process Loki on the local filesystem: for development only.
+# Single-process Loki on the local filesystem: enough for one small host (dev and the
+# Kamal stack alike). Retention: 72h here; the Kamal stack overrides it with
+# -store.retention.
 auth_enabled: false
 
 server:

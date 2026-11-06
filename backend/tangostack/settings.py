@@ -43,6 +43,11 @@ OTEL_ENABLED = config("OTEL_ENABLED", default=False, cast=bool) and (
     "PYTEST_VERSION" not in os.environ
 )
 OTEL_SERVICE_NAME = config("OTEL_SERVICE_NAME", default="tangostack-backend")
+# Which environment the telemetry comes from (`deployment.environment.name`): the
+# dashboards filter on it, since one stack serves staging and production.
+OTEL_ENVIRONMENT = config(
+    "OTEL_ENVIRONMENT", default="development" if DEBUG else "production"
+)
 OTEL_EXPORTER_OTLP_ENDPOINT = config(
     "OTEL_EXPORTER_OTLP_ENDPOINT", default="http://localhost:4318"
 )

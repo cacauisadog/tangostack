@@ -1,0 +1,65 @@
+# Overlay for the Kamal stack (deploy/config/deploy.observability.yml): one collector
+# for staging and production, which share the host. The passwords come from the
+# environment (Kamal secrets).
+receivers:
+  # Each environment has its own database (an accessory of its backend service).
+  postgresql/staging:
+    endpoint: tangostack-backend-staging-db:5432
+    username: tangostack
+    password: ${env:POSTGRES_STAGING_PASSWORD}
+    databases: [tangostack]
+    collection_interval: 30s
+    tls:
+      insecure: true
+  postgresql/production:
+    endpoint: tangostack-backend-production-db:5432
+    username: tangostack
+    password: ${env:POSTGRES_PRODUCTION_PASSWORD}
+    databases: [tangostack]
+    collection_interval: 30s
+    tls:
+      insecure: true
+
+  # CPU / memory of every container; their names carry the environment.
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+
+  # The VPS itself (its filesystem is mounted read-only at /hostfs).
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 30s
+    scrapers:
+      cpu: {}
+      load: {}
+      memory: {}
+      disk: {}
+      filesystem: {}
+      network: {}
+
+processors:
+  resource/staging:
+    attributes:
+      - key: deployment.environment.name
+        value: staging
+        action: upsert
+  resource/production:
+    attributes:
+      - key: deployment.environment.name
+        value: production
+        action: upsert
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, docker_stats, hostmetrics]
+      processors: [batch]
+      exporters: [prometheus]
+    metrics/postgres-staging:
+      receivers: [postgresql/staging]
+      processors: [resource/staging, batch]
+      exporters: [prometheus]
+    metrics/postgres-production:
+      receivers: [postgresql/production]
+      processors: [resource/production, batch]
+      exporters: [prometheus]

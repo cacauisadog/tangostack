@@ -71,13 +71,23 @@ django.setup()
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from tangostack import telemetry
 assert DjangoInstrumentor().is_instrumented_by_opentelemetry
+resource = telemetry._resource().attributes
+assert resource["deployment.environment.name"] == "staging"
+assert resource["service.name"] == "tangostack-worker"
 assert telemetry._handler in logging.getLogger("django.server").handlers
+assert telemetry._handler in logging.getLogger().handlers
+# what a Celery worker does to the root logger on start-up
+from celery.signals import after_setup_logger
+logging.getLogger().handlers.clear()
+after_setup_logger.send(sender=None, logger=logging.getLogger())
 assert telemetry._handler in logging.getLogger().handlers
 """
     env = {
         **os.environ,
         "OTEL_ENABLED": "true",
         "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1",
+        "OTEL_ENVIRONMENT": "staging",
+        "OTEL_SERVICE_NAME": "tangostack-worker",
     }
     env.pop("PYTEST_VERSION")
     env.pop("PYTEST_CURRENT_TEST")

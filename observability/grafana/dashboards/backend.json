@@ -48,7 +48,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval]))",
           "legendFormat": "{{http_route}}"
         }
       ],
@@ -81,7 +81,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "topk(15, sum by (http_route, http_request_method) (increase(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__range])))",
+          "expr": "topk(15, sum by (http_route, http_request_method) (increase(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__range])))",
           "instant": true,
           "format": "table"
         }
@@ -151,7 +151,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{http_route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval])))",
           "legendFormat": "{{http_route}}"
         }
       ],
@@ -184,7 +184,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "topk(15, histogram_quantile(0.99, sum by (le, http_route) (increase(http_server_request_duration_seconds_bucket{http_route=~\"$route\"}[$__range]))))",
+          "expr": "topk(15, histogram_quantile(0.99, sum by (le, http_route) (increase(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__range]))))",
           "instant": true,
           "format": "table"
         }
@@ -239,7 +239,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_seconds_bucket{http_route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
@@ -248,7 +248,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{http_route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
@@ -257,7 +257,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{http_route=~\"$route\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
       ],
@@ -290,7 +290,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_sum{http_route=~\"$route\"}[$__rate_interval])) / sum by (http_route) (rate(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_sum{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval])) / sum by (http_route) (rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval]))",
           "legendFormat": "{{http_route}}"
         }
       ],
@@ -336,7 +336,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__rate_interval]))",
+          "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__rate_interval]))",
           "legendFormat": "{{http_response_status_code}}"
         }
       ],
@@ -375,7 +375,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(http_server_request_duration_seconds_count{http_route=~\"$route\",http_response_status_code=~\"5..\"}[$__range])) / sum(rate(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__range]))"
+          "expr": "sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\",http_response_status_code=~\"5..\"}[$__range])) / sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__range]))"
         }
       ],
       "fieldConfig": {
@@ -408,7 +408,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(http_server_request_duration_seconds_count{http_route=~\"$route\"}[$__range]))"
+          "expr": "sum(increase(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",http_route=~\"$route\"}[$__range]))"
         }
       ],
       "fieldConfig": {
@@ -521,7 +521,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(postgresql_backends)",
+          "expr": "sum(postgresql_backends{deployment_environment_name=~\"$environment\"})",
           "legendFormat": "backends"
         },
         {
@@ -530,7 +530,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(postgresql_connection_max)",
+          "expr": "sum(postgresql_connection_max{deployment_environment_name=~\"$environment\"})",
           "legendFormat": "max"
         }
       ],
@@ -561,7 +561,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(postgresql_commits_total[$__rate_interval]))",
+          "expr": "sum(rate(postgresql_commits_total{deployment_environment_name=~\"$environment\"}[$__rate_interval]))",
           "legendFormat": "commits"
         },
         {
@@ -570,7 +570,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(postgresql_rollbacks_total[$__rate_interval]))",
+          "expr": "sum(rate(postgresql_rollbacks_total{deployment_environment_name=~\"$environment\"}[$__rate_interval]))",
           "legendFormat": "rollbacks"
         }
       ],
@@ -601,7 +601,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (postgresql_database_name) (postgresql_db_size_bytes)",
+          "expr": "sum by (postgresql_database_name) (postgresql_db_size_bytes{deployment_environment_name=~\"$environment\"})",
           "legendFormat": "{{postgresql_database_name}}"
         }
       ],
@@ -647,7 +647,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "sum by (detected_level) (count_over_time({service_name=\"tangostack-backend\"} [$__auto]))",
+          "expr": "sum by (detected_level) (count_over_time({service_name=~\"tangostack-.+\", deployment_environment_name=~\"$environment\"} [$__auto]))",
           "legendFormat": "{{detected_level}}",
           "queryType": "range"
         }
@@ -667,7 +667,7 @@
     },
     {
       "id": 21,
-      "title": "Backend logs",
+      "title": "Logs (backend and worker)",
       "type": "logs",
       "gridPos": {
         "x": 0,
@@ -686,7 +686,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service_name=\"tangostack-backend\"} |~ \"(?i)$search\"",
+          "expr": "{service_name=~\"tangostack-.+\", deployment_environment_name=~\"$environment\"} |~ \"(?i)$search\"",
           "queryType": "range"
         }
       ],
@@ -705,6 +705,28 @@
   "templating": {
     "list": [
       {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(deployment_environment_name)",
+          "refId": "e"
+        },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "sort": 1
+      },
+      {
         "name": "route",
         "label": "Endpoint",
         "type": "query",
@@ -713,7 +735,7 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(http_server_request_duration_seconds_count, http_route)",
+          "query": "label_values(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\"}, http_route)",
           "refId": "r"
         },
         "refresh": 2,

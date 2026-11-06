@@ -4,7 +4,7 @@ x-backend-dev: &backend-dev
     context: ./backend
     target: dev
   image: tangostack-backend:dev
-  environment:
+  environment: &backend-env
     DATABASE_URL: postgres://postgres:postgres@postgres:5432/tangostack
     CELERY_BROKER_URL: redis://valkey:6379/0
     EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
@@ -104,6 +104,9 @@ services:
   worker:
     <<: *backend-dev
     container_name: tangostack__worker
+    environment:
+      <<: *backend-env
+      OTEL_SERVICE_NAME: tangostack-worker
     command:
       - watchfiles
       - --filter
@@ -150,13 +153,14 @@ services:
     image: otel/opentelemetry-collector-contrib:0.164.0
     container_name: tangostack__otel_collector
     profiles: [observability]
-    command: ["--config=/etc/otelcol/config.yaml"]
+    command: ["--config=/etc/otelcol/config.yaml", "--config=/etc/otelcol/dev.yaml"]
     # needs the Docker socket for container stats
     user: "0"
     ports:
       - "127.0.0.1:4318:4318"
     volumes:
       - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./observability/otel-collector.dev.yaml:/etc/otelcol/dev.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   prometheus:

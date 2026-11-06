@@ -1,0 +1,35 @@
+# Overlay for docker compose (`make obs`): the dev database and the dev containers.
+receivers:
+  # Server-side Postgres stats (connections, commits, rows, ...).
+  postgresql:
+    endpoint: postgres:5432
+    username: postgres
+    password: postgres
+    databases: [tangostack]
+    collection_interval: 10s
+    tls:
+      insecure: true
+
+  # CPU / memory of every container (the backend, Postgres, ...).
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 10s
+
+processors:
+  # The app tags its own metrics (OTEL_ENVIRONMENT); the database's need it added.
+  resource/development:
+    attributes:
+      - key: deployment.environment.name
+        value: development
+        action: upsert
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, docker_stats]
+      processors: [batch]
+      exporters: [prometheus]
+    metrics/postgres:
+      receivers: [postgresql]
+      processors: [resource/development, batch]
+      exporters: [prometheus]

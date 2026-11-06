@@ -1,25 +1,13 @@
-# Receives the app's metrics and logs over OTLP/HTTP, adds Postgres and container
-# stats, and fans out: metrics -> Prometheus (scrapes :8889), logs -> Loki.
+# The part of the collector that is the same everywhere: receives the app's metrics and
+# logs over OTLP/HTTP, batches, and exports metrics to Prometheus (which scrapes :8889)
+# and logs to Loki. It is merged with an overlay that adds what the stack has to collect
+# and defines the metrics pipelines: otel-collector.dev.yaml (docker compose) or
+# otel-collector.prod.yaml (Kamal):  --config=<this file> --config=<overlay>
 receivers:
   otlp:
     protocols:
       http:
         endpoint: 0.0.0.0:4318
-
-  # Server-side Postgres stats (connections, commits, rows, ...); the dev database only.
-  postgresql:
-    endpoint: postgres:5432
-    username: postgres
-    password: postgres
-    databases: [tangostack]
-    collection_interval: 10s
-    tls:
-      insecure: true
-
-  # CPU / memory of every container (the backend, Postgres, ...).
-  docker_stats:
-    endpoint: unix:///var/run/docker.sock
-    collection_interval: 10s
 
 processors:
   batch: {}
@@ -34,10 +22,6 @@ exporters:
 
 service:
   pipelines:
-    metrics:
-      receivers: [otlp, postgresql, docker_stats]
-      processors: [batch]
-      exporters: [prometheus]
     logs:
       receivers: [otlp]
       processors: [batch]

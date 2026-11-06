@@ -40,6 +40,17 @@ def attach_log_handler():
             logger.addHandler(_handler)
 
 
+def _resource():
+    from opentelemetry.sdk.resources import Resource
+
+    return Resource.create(
+        {
+            "service.name": settings.OTEL_SERVICE_NAME,
+            "deployment.environment.name": settings.OTEL_ENVIRONMENT,
+        }
+    )
+
+
 def setup():
     if settings.OTEL_ENABLED:
         _start()
@@ -52,6 +63,7 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
     # labelled with the route template (not the raw URL).
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
 
+    from celery.signals import after_setup_logger
     from opentelemetry import metrics
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
@@ -63,17 +75,9 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.sdk.resources import Resource
 
     endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/")
-    resource = Resource.create(
-        {
-            "service.name": settings.OTEL_SERVICE_NAME,
-            "deployment.environment.name": "development"
-            if settings.DEBUG
-            else "production",
-        }
-    )
+    resource = _resource()
 
     reader = PeriodicExportingMetricReader(
         OTLPMetricExporter(endpoint=f"{endpoint}/v1/metrics"),
@@ -94,6 +98,9 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
 
     _handler = Handler(level=logging.INFO, logger_provider=logger_provider)
     attach_log_handler()
+    # A Celery worker empties the root logger's handlers while it starts (and installs
+    # its own console one): put ours back.
+    after_setup_logger.connect(lambda **_: attach_log_handler(), weak=False)
     # The root logger defaults to WARNING, which would drop the INFO lines.
     logging.getLogger().setLevel(logging.INFO)
 

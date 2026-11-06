@@ -229,9 +229,17 @@ make obs-down                     # stop it (data is kept in Docker volumes)
   (`api/lists/<list_id>`), not raw URLs; unmatched URLs (404s) show up with no name.
 - **Pipeline:** app -> `otel-collector` -> Prometheus (metrics) and Loki (logs). The
   collector also scrapes Postgres and the containers (it needs the Docker socket).
-  Configs live in `observability/`; all ports are bound to localhost.
+  Configs live in `observability/`; all ports are bound to localhost. The collector
+  config is a shared base (`otel-collector.yaml`) merged with an overlay per stack
+  (`.dev.yaml` for compose, `.prod.yaml` for the Kamal stack).
 - **Env:** `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4318`; the dev
-  container uses `http://otel-collector:4318`) and `OTEL_SERVICE_NAME`.
+  container uses `http://otel-collector:4318`), `OTEL_SERVICE_NAME` (the Celery worker
+  is `tangostack-worker`) and `OTEL_ENVIRONMENT` (`development` with `DEBUG`, else
+  `production`; staging sets `staging`). Every series and log carries it as
+  `deployment.environment.name`, and the dashboard's Environment variable filters on it.
+- **Celery:** a worker replaces the root logger's handlers when it starts;
+  `telemetry.py` puts the shipping handler back (`after_setup_logger`), so worker logs
+  reach Loki too. The worker sends logs only (no HTTP metrics).
 - **Gunicorn:** each worker exports its own series (`service_instance_id`); queries
   sum over them. Verified with gevent workers.
 - **Tests** never enable it (settings ignore `OTEL_ENABLED` under pytest).
