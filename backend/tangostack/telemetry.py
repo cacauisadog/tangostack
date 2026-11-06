@@ -106,3 +106,9 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
 
     # Static files and silk's own pages would only add noise to the endpoint stats.
     DjangoInstrumentor().instrument(excluded_urls="static/.*,silk/.*")
+    # It puts its middleware first, and that one reads the request's host (which
+    # ALLOWED_HOSTS rejects for the container probe): the health check goes back to
+    # the front, before anything looks at the host.
+    health = "tangostack.apps.core.middleware.HealthCheckMiddleware"
+    settings.MIDDLEWARE.remove(health)
+    settings.MIDDLEWARE.insert(0, health)

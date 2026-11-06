@@ -81,6 +81,12 @@ from celery.signals import after_setup_logger
 logging.getLogger().handlers.clear()
 after_setup_logger.send(sender=None, logger=logging.getLogger())
 assert telemetry._handler in logging.getLogger().handlers
+# the container's health probe has a Host that ALLOWED_HOSTS rejects: still not a 400
+from django.conf import settings
+assert settings.MIDDLEWARE[0].endswith("HealthCheckMiddleware"), settings.MIDDLEWARE
+from django.test import Client
+status = Client().get("/api/health", HTTP_HOST="b3df76dcfb53:8000").status_code
+assert status in (200, 503), status
 """
     env = {
         **os.environ,
