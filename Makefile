@@ -186,8 +186,8 @@ deploy-logs: ## Follow-less log tail of a deployed service (required: env=; opti
 	deploy/with-env.sh $(env) $(KAMAL) app logs -c deploy/config/deploy.$(if $(filter worker,$(svc)),backend,$(or $(svc),backend)).yml -d $(env) $(if $(filter worker,$(svc)),--roles worker,$(if $(filter frontend,$(svc)),,--roles web)) --lines $(or $(lines),100)
 
 obs-deploy: ## Boot or apply config changes of the server's observability stack (optional: svc=otel-collector|prometheus|loki|grafana, default all; first=1 for the first boot)
-	deploy/obs.sh $(if $(first),boot,reboot) $(or $(svc),all)
+	@KAMAL=$(KAMAL) deploy/obs.sh $(if $(first),boot,reboot) $(or $(svc),all)
 
 obs-logs: ## Log tail of a server observability service (required: svc=otel-collector|prometheus|loki|grafana; optional: lines=100)
 	@test -n "$(svc)" || { echo "Usage: make obs-logs svc=otel-collector|prometheus|loki|grafana [lines=100]"; exit 1; }
-	deploy/obs.sh logs $(svc) $(or $(lines),100)
+	@KAMAL=$(KAMAL) deploy/obs.sh logs $(svc) $(or $(lines),100)
