@@ -1,0 +1,104 @@
+# Kamal stack for observability (see "Observability" in AGENTS.md): ONE stack for every
+# environment on the host. The backends send OTLP to the collector, which feeds
+# Prometheus (metrics) and Loki (logs); Grafana is the only thing exposed, at
+# GRAFANA_HOST behind kamal-proxy. Only accessories, no app: manage it with
+# `make obs-deploy` / `make obs-logs` (deploy/obs.sh), never `kamal deploy`.
+#
+# The containers share Kamal's docker network with the backends and the databases and
+# find each other by name; the network aliases below keep the configs in observability/
+# identical to the dev compose ones.
+service: tangostack-observability
+# unused (no app), but Kamal requires them
+image: unused/tangostack-observability
+servers:
+  web:
+    - <%= ENV.fetch("DEPLOY_HOST") %>
+registry:
+  server: ghcr.io
+  username: <%= ENV.fetch("REGISTRY_USER") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: deploy
+  keys_only: true
+  keys:
+    - <%= ENV.fetch("SSH_KEY_FILE") %>
+
+builder:
+  arch: amd64
+
+# Docker named volumes (not host directories) so each image's own user owns its data.
+accessories:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    cmd: --config=/etc/otelcol/config.yaml --config=/etc/otelcol/prod.yaml
+    env:
+      secret:
+        - POSTGRES_STAGING_PASSWORD
+        - POSTGRES_PRODUCTION_PASSWORD
+    files:
+      - observability/otel-collector.yaml:/etc/otelcol/config.yaml
+      - observability/otel-collector.prod.yaml:/etc/otelcol/prod.yaml
+    volumes:
+      # container stats (root-equivalent access to Docker: the collector only reads) and
+      # the host's CPU, memory, disk and network
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/hostfs:ro
+    options:
+      user: "0"
+      network-alias: otel-collector
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    cmd: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=30d
+    files:
+      - observability/prometheus.yml:/etc/prometheus/prometheus.yml
+    volumes:
+      - tangostack-observability-prometheus:/prometheus
+    options:
+      network-alias: prometheus
+
+  loki:
+    image: grafana/loki:3.7.9
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    # 14 days (overrides retention_period in loki.yaml)
+    cmd: -config.file=/etc/loki/config.yaml -store.retention=336h
+    files:
+      - observability/loki.yaml:/etc/loki/config.yaml
+    volumes:
+      - tangostack-observability-loki:/loki
+    options:
+      network-alias: loki
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    env:
+      clear:
+        GF_SERVER_ROOT_URL: https://<%= ENV.fetch("GRAFANA_HOST") %>
+        GF_AUTH_ANONYMOUS_ENABLED: "false"
+        GF_USERS_ALLOW_SIGN_UP: "false"
+        GF_ANALYTICS_REPORTING_ENABLED: "false"
+        GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      secret:
+        - GF_SECURITY_ADMIN_PASSWORD
+    files:
+      - observability/grafana/provisioning/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - observability/grafana/provisioning/dashboards/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - observability/grafana/dashboards/backend.json:/var/lib/grafana/dashboards/backend.json
+    volumes:
+      - tangostack-observability-grafana:/var/lib/grafana
+    proxy:
+      host: <%= ENV.fetch("GRAFANA_HOST") %>
+      app_port: 3000
+      ssl:
+        certificate_pem: TLS_CERT
+        private_key_pem: TLS_KEY
+      forward_headers: true
+      healthcheck:
+        path: /api/health
+        interval: 2
+        timeout: 5

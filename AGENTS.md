@@ -254,7 +254,8 @@ already wired to it. Nothing is ever delivered.
 - **Observability** (OpenTelemetry metrics + logs -> collector -> Prometheus/Loki ->
   Grafana at <http://localhost:3001>) is opt-in and off by default: `make obs` starts
   the stack, `OTEL_ENABLED=true` in `backend/.env` turns the app side on. Details in
-  `backend/README.md`; configs in `observability/`.
+  `backend/README.md`; configs in `observability/` (the same files feed the server
+  stack, see "Deployment").
 - **django-silk** (request/SQL profiler) is on in dev at `/silk/` (no login; routed
   to Django by the Caddyfile). Dev dependency, so never in the prod image;
   `SILK_ENABLED=false` turns it off (the e2e backend does), and it refuses to
@@ -378,6 +379,24 @@ Valkey). An environment created before Valkey existed needs it once:
 (with `VALKEY_PASSWORD` in `~/.config/tangostack/<env>.env`).
 Logs: `make deploy-logs env=staging svc=worker`. Django hides 500
 tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
+
+Observability on the server: ONE stack for both environments
+(`deploy/config/deploy.observability.yml`, accessories only: `otel-collector`,
+`prometheus`, `loki`, `grafana`; service `tangostack-observability`). The backends
+(web and worker) send OTLP to `tangostack-observability-otel-collector:4318` over
+Kamal's docker network, tagged with `OTEL_ENVIRONMENT` (set per destination) so the
+dashboard's Environment filter separates staging from production. The collector also
+scrapes both Postgres databases, the containers and the host (overlay
+`observability/otel-collector.prod.yaml`). Only Grafana is exposed, at `GRAFANA_HOST`
+(`grafana.<domain>`, behind kamal-proxy with the Origin CA cert, login required,
+anonymous off; a Cloudflare DNS record for it must exist). Retention: metrics 30 d,
+logs 14 d. Data lives in Docker named volumes `tangostack-observability-*`.
+`make obs-deploy [svc=...]` re-applies config/dashboards (reboots the accessories; data
+is kept), `first=1` for the first boot; `make obs-logs svc=...`. Logic in
+`deploy/obs.sh`; it reads the server, key, cert and DB passwords from the staging and
+production env files plus `~/.config/tangostack/observability.env` with `GRAFANA_HOST`
+and `GF_SECURITY_ADMIN_PASSWORD`. Boot the stack before deploying a backend with
+`OTEL_ENABLED` on (without it the exporters just log and drop).
 
 Several apps on one host must not share a name: container names carry the
 destination, and the two databases are named per environment on purpose.

@@ -6,3 +6,7 @@ accessories:
     service: tangostack-backend-production-db
   valkey:
     service: tangostack-backend-production-valkey
+
+env:
+  clear:
+    OTEL_ENVIRONMENT: production

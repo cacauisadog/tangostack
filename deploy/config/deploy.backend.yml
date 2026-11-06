@@ -24,6 +24,9 @@ servers:
       - <%= ENV.fetch("DEPLOY_HOST") %>
     cmd: celery -A tangostack worker -l info --concurrency 2 --max-memory-per-child 300000
     proxy: false
+    env:
+      clear:
+        OTEL_SERVICE_NAME: tangostack-worker
     options:
       health-cmd: celery -A tangostack inspect ping -t 5
       health-interval: 30s
@@ -80,6 +83,10 @@ env:
     CSRF_TRUSTED_ORIGINS: https://<%= ENV.fetch("APP_HOST") %>
     EMAIL_HOST: smtp.resend.com
     EMAIL_USERNAME: resend
+    # telemetry to the observability stack (deploy.observability.yml); OTEL_ENVIRONMENT
+    # is per destination. Without the stack running, the exporters just drop their data.
+    OTEL_ENABLED: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://tangostack-observability-otel-collector:4318
   secret:
     - SECRET_KEY
     - DATABASE_URL

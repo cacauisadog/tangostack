@@ -12,7 +12,7 @@ GHCR = ghcr.io/$(REGISTRY_OWNER)/tangostack
 .PHONY: help db-up db-down mailpit obs obs-down up down build build-prod logs bash shell_plus proxy-up proxy-down proxy-trust run migrate makemigrations check-migrations \
 	startapp shell dbshell superuser silk-clear check test test-fresh coverage-report lint format \
 	celery celery-logs fe-install fe-dev fe-dev-api fe-build fe-test fe-e2e fe-e2e-report e2e-backend e2e-flush fe-lint fe-format fe-format-check \
-	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs rollback
+	fe-typecheck fe-check fe-api-generate api-export api-generate deploy deploy-logs rollback obs-deploy obs-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -184,3 +184,10 @@ rollback:
 deploy-logs: ## Follow-less log tail of a deployed service (required: env=; optional: svc=backend|worker|frontend, lines=100)
 	@test -n "$(env)" || { echo "Usage: make deploy-logs env=staging|production [svc=backend|worker|frontend] [lines=100]"; exit 1; }
 	deploy/with-env.sh $(env) $(KAMAL) app logs -c deploy/config/deploy.$(if $(filter worker,$(svc)),backend,$(or $(svc),backend)).yml -d $(env) $(if $(filter worker,$(svc)),--roles worker,$(if $(filter frontend,$(svc)),,--roles web)) --lines $(or $(lines),100)
+
+obs-deploy: ## Boot or apply config changes of the server's observability stack (optional: svc=otel-collector|prometheus|loki|grafana, default all; first=1 for the first boot)
+	deploy/obs.sh $(if $(first),boot,reboot) $(or $(svc),all)
+
+obs-logs: ## Log tail of a server observability service (required: svc=otel-collector|prometheus|loki|grafana; optional: lines=100)
+	@test -n "$(svc)" || { echo "Usage: make obs-logs svc=otel-collector|prometheus|loki|grafana [lines=100]"; exit 1; }
+	deploy/obs.sh logs $(svc) $(or $(lines),100)

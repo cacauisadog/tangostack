@@ -6,3 +6,7 @@ accessories:
     service: tangostack-backend-staging-db
   valkey:
     service: tangostack-backend-staging-valkey
+
+env:
+  clear:
+    OTEL_ENVIRONMENT: staging
