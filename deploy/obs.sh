@@ -35,8 +35,20 @@ export TLS_CERT TLS_KEY POSTGRES_STAGING_PASSWORD POSTGRES_PRODUCTION_PASSWORD
 kamal="${KAMAL:-kamal}"
 cfg=(-c deploy/config/deploy.observability.yml)
 
+# Kamal uploads a custom certificate only for app deploys, not for an accessory's
+# proxy: put it where kamal-proxy expects it (.kamal/proxy/apps-config/<service>/tls).
+upload_certificate() {
+  local tls=.kamal/proxy/apps-config/tangostack-observability/tls
+  printf '%s' "$TLS_CERT" | ssh -i "$SSH_KEY_FILE" -o IdentitiesOnly=yes "deploy@$DEPLOY_HOST" \
+    "mkdir -p $tls && cat > $tls/cert.pem && chmod 644 $tls/cert.pem"
+  printf '%s' "$TLS_KEY" | ssh -i "$SSH_KEY_FILE" -o IdentitiesOnly=yes "deploy@$DEPLOY_HOST" \
+    "cat > $tls/key.pem && chmod 644 $tls/key.pem"
+}
+
 case "$action" in
-  boot | reboot) exec "$kamal" accessory "$action" "$target" "${cfg[@]}" ;;
+  boot | reboot)
+    case "$target" in all | grafana) upload_certificate ;; esac
+    exec "$kamal" accessory "$action" "$target" "${cfg[@]}" ;;
   logs) exec "$kamal" accessory logs "$target" "${cfg[@]}" --lines "$lines" ;;
   *) echo "unknown action: $action" >&2; exit 1 ;;
 esac
