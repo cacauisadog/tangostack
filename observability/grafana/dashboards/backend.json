@@ -614,12 +614,291 @@
       "options": {}
     },
     {
+      "id": 22,
+      "type": "row",
+      "title": "Host (the VPS, both environments)",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 23,
+      "title": "CPU usage",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 49,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "100 * (1 - sum(rate(system_cpu_time_seconds_total{state=\"idle\"}[$__rate_interval])) / sum(rate(system_cpu_time_seconds_total[$__rate_interval])))",
+          "legendFormat": "busy"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Share of all CPU time that isn't idle, whole host."
+    },
+    {
+      "id": 24,
+      "title": "Load average",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 49,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "system_cpu_load_average_1m",
+          "legendFormat": "1 min"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "system_cpu_load_average_5m",
+          "legendFormat": "5 min"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "system_cpu_load_average_15m",
+          "legendFormat": "15 min"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "system_cpu_logical_count",
+          "legendFormat": "CPUs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Runnable processes. Sustained load above the number of CPUs means work is queueing."
+    },
+    {
+      "id": 25,
+      "title": "Memory",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 49,
+        "w": 8,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "system_memory_usage_bytes",
+          "legendFormat": "{{state}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            },
+            "fillOpacity": 30
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Host memory by state. `used` is what programs hold; `cached` and `slab_reclaimable` are given back when needed."
+    },
+    {
+      "id": 26,
+      "title": "Disk used (/)",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(system_filesystem_usage_bytes{mountpoint=\"/\",state=\"used\"}) / sum(system_filesystem_usage_bytes{mountpoint=\"/\",state=~\"used|free\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "description": "Root filesystem, where Docker keeps the database, Prometheus and Loki data."
+    },
+    {
+      "id": 27,
+      "title": "Network",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 6,
+        "y": 56,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (direction) (rate(system_network_io_bytes_total{device!~\"lo|docker.*|br-.*|veth.*\"}[$__rate_interval]))",
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Bytes per second over the host's real interfaces (loopback and Docker's virtual ones left out)."
+    },
+    {
+      "id": 28,
+      "title": "Disk I/O",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 15,
+        "y": 56,
+        "w": 9,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (direction) (rate(system_disk_io_bytes_total{device=~\"sd[a-z]|vd[a-z]|nvme[0-9]+n[0-9]+\"}[$__rate_interval]))",
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Bytes per second read from and written to the physical disks."
+    },
+    {
       "id": 19,
       "type": "row",
       "title": "Logs",
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 63,
         "w": 24,
         "h": 1
       },
@@ -632,7 +911,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 64,
         "w": 24,
         "h": 6
       },
@@ -671,7 +950,7 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 70,
         "w": 24,
         "h": 12
       },
