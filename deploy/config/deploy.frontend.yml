@@ -39,3 +39,8 @@ proxy:
 
 drain_timeout: 30
 stop_timeout: 35
+
+env:
+  clear:
+    # report until the pages are clean on staging, then enforce (see "Security headers" in AGENTS.md)
+    CSP_MODE: report

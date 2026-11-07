@@ -1,4 +1,5 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import { routeTree } from "./routeTree.gen";
 import NotFound from "./components/NotFound";
 
@@ -15,6 +16,9 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    // the per-request CSP nonce (csp-middleware.ts); on the client the router reads it
+    // back from the page
+    ssr: { nonce: getGlobalStartContext()?.nonce },
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient: context.queryClient });

@@ -36,6 +36,14 @@ function apiProxy(target: string): Plugin {
   };
 }
 
+const securityHeaders = {
+  "Strict-Transport-Security": "max-age=15552000",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+};
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   server: apiProxyTarget
@@ -48,7 +56,13 @@ const config = defineConfig({
   plugins: [
     devtools(),
     ...(apiProxyTarget ? [apiProxy(apiProxyTarget)] : []),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({
+      rollupConfig: { external: [/^@sentry\//] },
+      // security headers on every response, static files included (the CSP, which needs
+      // a nonce per request, is csp-middleware.ts); HSTS is six months, no
+      // includeSubDomains/preload (hard to undo)
+      routeRules: { "/**": { headers: securityHeaders } },
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),

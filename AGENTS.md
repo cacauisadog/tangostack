@@ -415,7 +415,18 @@ On top (`settings.py`, "SECURITY HEADERS"):
   staging's admin and login pages are clean. The API docs page has its own looser policy
   (`tangostack/api.py`, Swagger loads from jsDelivr). The health check skips all of
   this (it answers before the middleware).
-- The frontend (the rest of the pages) sets its own headers and CSP; see its section.
+- **Frontend** (every page that isn't Django's): static headers on every response, static
+  files included, from Nitro's `routeRules` in `vite.config.ts` (HSTS six months,
+  nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`,
+  opener policy). The CSP is `src/csp-middleware.ts` (registered in `src/start.ts`): a
+  fresh nonce per request, `script-src 'nonce-…' 'strict-dynamic'`, passed to the router
+  with `ssr: { nonce }` in `router.tsx` so the streamed inline scripts carry it. Same
+  `CSP_MODE=off|report|enforce` (runtime env, Kamal), report by default; not sent in
+  dev (Vite's inline scripts have no nonce). A new origin the page talks to (separate API
+  host, analytics, fonts) has to be added to the policy there, or it is blocked once
+  enforced. To check a change: build, run `node .output/server/index.mjs` with
+  `CSP_MODE=report` and look for "violates the following Content Security Policy" in a
+  browser console.
 
 ## Email delivery (Celery)
 
