@@ -139,7 +139,7 @@ fe-e2e-report: ## Open the last Playwright HTML report
 
 # e2e runs against its own database and ports so it never touches dev data.
 E2E_DB = tangostack_e2e
-E2E_ENV = SILK_ENABLED=false DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=localhost EMAIL_PORT=1026 EMAIL_USE_TLS=false
+E2E_ENV = SILK_ENABLED=false CELERY_TASK_ALWAYS_EAGER=true DATABASE_URL=postgres://postgres:postgres@localhost:5432/$(E2E_DB) ALLOWED_HOSTS=localhost,127.0.0.1 GOOGLE_CLIENT_ID=e2e.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=e2e-secret EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=localhost EMAIL_PORT=1026 EMAIL_USE_TLS=false
 
 e2e-backend: ## Django for e2e: create/migrate the e2e DB, serve on :8001 (email goes to the mailpit-e2e container)
 	@docker compose up -d --wait mailpit-e2e
