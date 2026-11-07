@@ -68,8 +68,18 @@ case "$name" in
   frontend)
     docker run -d --name "$app" -p 127.0.0.1:13000:3000 "$image" >/dev/null
     wait_for http://127.0.0.1:13000/healthz
-    # the server-rendered landing page
-    curl -fsS -o /dev/null http://127.0.0.1:13000/
+    # the server-rendered landing page, with its security headers and a CSP whose nonce is
+    # the one on the page's inline scripts (a router upgrade that stops passing it would
+    # leave the policy blocking the page's own scripts once enforced)
+    page=$(mktemp)
+    headers=$(mktemp)
+    curl -fsS -D "$headers" -o "$page" http://127.0.0.1:13000/
+    grep -qi '^x-content-type-options: nosniff' "$headers" || { echo "frontend: no nosniff header" >&2; exit 1; }
+    grep -qi '^strict-transport-security:' "$headers" || { echo "frontend: no HSTS header" >&2; exit 1; }
+    nonce=$(sed -n "s/^[Cc]ontent-[Ss]ecurity-[Pp]olicy[^:]*:.*script-src 'nonce-\([^']*\)'.*/\1/p" "$headers" | head -1)
+    [ -n "$nonce" ] || { echo "frontend: no nonce in the CSP header" >&2; exit 1; }
+    grep -qF "<script nonce=\"$nonce\"" "$page" || { echo "frontend: the page's scripts don't carry the CSP nonce" >&2; exit 1; }
+    rm -f "$page" "$headers"
     ;;
   *)
     echo "unknown image name: $name" >&2
