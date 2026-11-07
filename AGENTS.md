@@ -418,8 +418,9 @@ On top (`settings.py`, "SECURITY HEADERS"):
   requests, no `includeSubDomains`/`preload` (hard to undo).
 - **CSP** for what Django serves (admin, allauth pages): `CSP_MODE=off|report|enforce`.
   `report` (the default) sends `Content-Security-Policy-Report-Only`: violations show in
-  the browser console and nothing is blocked. Move the Kamal config to `enforce` once
-  staging's admin and login pages are clean. The API docs page has its own looser policy
+  the browser console and nothing is blocked; Kamal sets `enforce`. To try a new policy,
+  set `CSP_MODE=report` on staging first. Cloudflare's Web Analytics auto-injection adds a
+  script the policy blocks: keep it off. The API docs page has its own looser policy
   (`tangostack/api.py`, Swagger loads from jsDelivr). The health check skips all of
   this (it answers before the middleware).
 - **Frontend** (every page that isn't Django's): static headers on every response, static
@@ -428,7 +429,7 @@ On top (`settings.py`, "SECURITY HEADERS"):
   opener policy). The CSP is `src/csp-middleware.ts` (registered in `src/start.ts`): a
   fresh nonce per request, `script-src 'nonce-…' 'strict-dynamic'`, passed to the router
   with `ssr: { nonce }` in `router.tsx` so the streamed inline scripts carry it. Same
-  `CSP_MODE=off|report|enforce` (runtime env, Kamal), report by default; not sent in
+  `CSP_MODE=off|report|enforce` (runtime env, Kamal sets enforce), report by default; not sent in
   dev (Vite's inline scripts have no nonce). A new origin the page talks to (separate API
   host, analytics, fonts) has to be added to the policy there, or it is blocked once
   enforced. To check a change: build, run `node .output/server/index.mjs` with
