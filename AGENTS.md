@@ -377,6 +377,13 @@ swap, fail2ban, unattended upgrades, SSH lockdown), then
 Valkey). An environment created before Valkey existed needs it once:
 `deploy/with-env.sh <env> "$(command -v kamal || echo ~/.gem/ruby/*/bin/kamal)" accessory boot valkey -c deploy/config/deploy.backend.yml -d <env>`
 (with `VALKEY_PASSWORD` in `~/.config/tangostack/<env>.env`).
+Shell or any command against an environment: `make exec env=staging|production
+[svc=backend|frontend|db|valkey] [cmd='...']`. Default is `python manage.py shell_plus`
+in a throwaway container of the deployed image (same settings and secrets, removed on
+exit, not attached to the running containers; production asks `[y/N]`). `db` and
+`valkey` run `psql` / `valkey-cli` inside the accessory. Logic in `deploy/exec.sh`.
+Never start a Celery worker or gunicorn that way, and don't overlap `migrate` with a
+deploy.
 Logs: `make deploy-logs env=staging svc=worker`. Django hides 500
 tracebacks with DEBUG off unless the console logging in `settings.py` is kept.
 
