@@ -77,6 +77,10 @@ env:
   clear:
     BEHIND_PROXY: "true"
     SESSION_COOKIE_SECURE: "true"
+    # HSTS, six months (see "Security headers" in AGENTS.md); CSP_MODE=report until the
+    # pages are clean, then enforce
+    SECURE_HSTS_SECONDS: "15552000"
+    CSP_MODE: report
     WEB_CONCURRENCY: "2"
     TRUSTED_CLIENT_IP_HEADER: CF-Connecting-IP
     ALLOWED_HOSTS: <%= ENV.fetch("APP_HOST") %>

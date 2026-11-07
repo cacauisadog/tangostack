@@ -16,6 +16,7 @@ from pathlib import Path
 import dj_database_url
 from decouple import Csv, config
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.csp import CSP
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -101,6 +102,7 @@ MIDDLEWARE = [
     # first: health checks must not depend on ALLOWED_HOSTS (see the class)
     "tangostack.apps.core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -206,6 +208,36 @@ SOCIALACCOUNT_PROVIDERS = {
 # outside of local development (behind the proxy, see BEHIND_PROXY).
 SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+
+
+# ==============================================================================
+# SECURITY HEADERS
+# SecurityMiddleware already sends nosniff, Referrer-Policy and the opener policy, and
+# XFrameOptionsMiddleware denies framing. What needs a setting:
+# ==============================================================================
+# HSTS: browsers stay on HTTPS for this long after one visit (only sent on HTTPS
+# requests; the Kamal config sets six months). No includeSubDomains or preload: both
+# are hard to undo.
+SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=0, cast=int)
+
+# CSP for what Django itself serves (the admin, allauth's pages); the frontend sets its
+# own. CSP_MODE: "report" sends it as Content-Security-Policy-Report-Only (violations
+# show in the browser console, nothing is blocked), "enforce" blocks, "off" sends
+# nothing. Move to "enforce" once the pages are clean.
+CSP_MODE = config("CSP_MODE", default="report")
+if CSP_MODE not in ("off", "report", "enforce"):
+    raise ImproperlyConfigured("CSP_MODE must be off, report or enforce.")
+_CSP_POLICY = {
+    "default-src": [CSP.SELF],
+    "img-src": [CSP.SELF, "data:"],
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.SELF],
+    # allauth's provider login is a POST that redirects to Google
+    "form-action": [CSP.SELF, "https://accounts.google.com"],
+    "frame-ancestors": [CSP.NONE],
+}
+SECURE_CSP = _CSP_POLICY if CSP_MODE == "enforce" else {}
+SECURE_CSP_REPORT_ONLY = _CSP_POLICY if CSP_MODE == "report" else {}
 
 
 # ==============================================================================

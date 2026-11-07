@@ -401,6 +401,22 @@ and `GF_SECURITY_ADMIN_PASSWORD`. Boot the stack before deploying a backend with
 Several apps on one host must not share a name: container names carry the
 destination, and the two databases are named per environment on purpose.
 
+## Security headers
+
+Django sends nosniff, `Referrer-Policy: same-origin`, the opener policy and
+`X-Frame-Options: DENY` by default (`SecurityMiddleware`, `XFrameOptionsMiddleware`).
+On top (`settings.py`, "SECURITY HEADERS"):
+
+- **HSTS:** `SECURE_HSTS_SECONDS` (0 in dev; Kamal sets six months). Only on HTTPS
+  requests, no `includeSubDomains`/`preload` (hard to undo).
+- **CSP** for what Django serves (admin, allauth pages): `CSP_MODE=off|report|enforce`.
+  `report` (the default) sends `Content-Security-Policy-Report-Only`: violations show in
+  the browser console and nothing is blocked. Move the Kamal config to `enforce` once
+  staging's admin and login pages are clean. The API docs page has its own looser policy
+  (`tangostack/api.py`, Swagger loads from jsDelivr). The health check skips all of
+  this (it answers before the middleware).
+- The frontend (the rest of the pages) sets its own headers and CSP; see its section.
+
 ## Email delivery (Celery)
 
 Email is sent in the background: Celery with Valkey as the broker. allauth's adapter
