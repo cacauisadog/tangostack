@@ -1,6 +1,6 @@
 # Single-process Tempo on the local filesystem: enough for one small host (dev and the
 # Kamal stack alike). Receives spans from the collector over OTLP/gRPC. Retention: 24h
-# here; the Kamal stack mounts a copy with a longer one.
+# here; the Kamal stack sets TEMPO_BLOCK_RETENTION (needs -config.expand-env=true).
 server:
   http_listen_port: 3200
 
@@ -21,4 +21,4 @@ storage:
 
 compactor:
   compaction:
-    block_retention: 24h
+    block_retention: ${TEMPO_BLOCK_RETENTION:-24h}

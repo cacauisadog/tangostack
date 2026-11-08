@@ -189,7 +189,7 @@ services:
     image: grafana/tempo:2.10.10
     container_name: tangostack__tempo
     profiles: [observability]
-    command: ["-config.file=/etc/tempo/config.yaml"]
+    command: ["-config.file=/etc/tempo/config.yaml", "-config.expand-env=true"]
     volumes:
       - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
       - tempo_data:/var/tempo

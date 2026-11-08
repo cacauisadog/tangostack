@@ -76,8 +76,11 @@ accessories:
   tempo:
     image: grafana/tempo:2.10.10
     host: <%= ENV.fetch("DEPLOY_HOST") %>
-    # 7 days (overrides block_retention in tempo.yaml)
-    cmd: -config.file=/etc/tempo/config.yaml -compactor.compaction.block-retention=168h
+    # 7 days (tempo.yaml reads it from the environment: Tempo has no flag for it)
+    cmd: -config.file=/etc/tempo/config.yaml -config.expand-env=true
+    env:
+      clear:
+        TEMPO_BLOCK_RETENTION: 168h
     files:
       - observability/tempo.yaml:/etc/tempo/config.yaml
     volumes:
