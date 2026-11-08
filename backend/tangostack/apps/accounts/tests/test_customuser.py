@@ -1,6 +1,5 @@
 import pytest
 from django.db import IntegrityError
-from django.test import override_settings
 from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
@@ -142,7 +141,6 @@ class TestCustomUserAdmin:
             last_name="Bittencourt",
         )
 
-    @override_settings(TREINOR_ENVIRONMENT="test")
     def test_get_queryset(self, client, django_user_model, custom_superuser):
         url = reverse("admin:accounts_customuser_changelist")
 

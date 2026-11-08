@@ -1,5 +1,7 @@
 # Tangostack Agent Instructions
 
+New project from this template (rename, servers, first deploy): `TEMPLATE.md`.
+
 Repository-wide rules. `backend/AGENTS.md` adds backend-specific rules.
 
 ## Feature workflow: sketch on the frontend, build on the backend
@@ -310,8 +312,8 @@ is involved besides Cloudflare DNS/SSL, Resend and GitHub.
   deploy user's private key). `deploy/defaults.sh` works out the rest: the registry
   owner from the `origin` remote, the registry login from `gh`; both can be overridden
   there (`REGISTRY_OWNER`, `REGISTRY_USER`).
-  Staging is `staging.treinor.com.br`, production `treinor.com.br`; the host's IP
-  is the `DEPLOY_HOST` variable, kept out of the repository.
+  Staging is `staging.<domain>`, production `<domain>` (`APP_HOST`); the host's IP
+  is the `DEPLOY_HOST` variable. Both are kept out of the repository.
 - **Images** are built, smoke-tested (`.github/scripts/smoke-test.sh`) and pushed by
   CI as `ghcr.io/<owner of the origin remote>/tangostack-{backend,frontend}:<full commit sha>` (also
   `:latest`, `:sha-<short>`). Kamal deploys them with `--skip-push --version <sha>`
@@ -400,7 +402,12 @@ anonymous off; a Cloudflare DNS record for it must exist). Retention: metrics 30
 logs 14 d, traces 7 d. Traces: the app sends every span (Django requests, psycopg
 queries, Celery tasks), the collector's `tail_sampling` keeps the traces with an error,
 the ones over 500 ms and 10% of the rest (`observability/otel-collector.yaml`); in
-Grafana, Explore -> Tempo, and a trace links to its logs in Loki. Data lives in Docker named volumes `tangostack-observability-*`.
+Grafana, Explore -> Tempo, and a trace links to its logs in Loki.
+The frontend is not traced: a trace starts at Django, so browser time and the click that
+caused a request are invisible. On purpose: browser OTel needs a public, rate-limited
+route to the collector and adds bundle weight, while Sentry's browser SDK gives errors,
+source maps, vitals and trace headers (`traceparent`, which Django's instrumentation
+already continues) without any of that. Add Sentry in the real project instead. Data lives in Docker named volumes `tangostack-observability-*`.
 `make obs-deploy [svc=...]` re-applies config/dashboards (reboots the accessories; data
 is kept), `first=1` for the first boot; `make obs-logs svc=...`. Logic in
 `deploy/obs.sh`; it reads the server, key, cert and DB passwords from the staging and

@@ -1,5 +1,7 @@
 # Tangostack
 
+> Starting a new project from this template? Follow [`TEMPLATE.md`](TEMPLATE.md).
+
 A to-do app, built as a full-stack template: a **TanStack Start** (React 19)
 frontend talking to a **Django + Django Ninja** API over a single HTTPS origin,
 with **PostgreSQL**, cookie-session auth through **django-allauth** (email +
