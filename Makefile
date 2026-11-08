@@ -33,11 +33,11 @@ celery-logs: ## Follow the Celery worker's logs
 db-down: ## Stop the containers (same as `make down`)
 	docker compose --profile observability down
 
-obs: ## Start the observability stack (OTel collector, Prometheus, Loki, Grafana: http://localhost:3001)
-	docker compose --profile observability up -d otel-collector prometheus loki grafana
+obs: ## Start the observability stack (OTel collector, Prometheus, Loki, Tempo, Grafana: http://localhost:3001)
+	docker compose --profile observability up -d otel-collector prometheus loki tempo grafana
 
 obs-down: ## Stop the observability stack (its data is kept)
-	docker compose --profile observability stop otel-collector prometheus loki grafana
+	docker compose --profile observability stop otel-collector prometheus loki tempo grafana
 
 up: ## Start everything in containers: postgres, mailpit, valkey, backend, worker, frontend (not the proxy)
 	docker compose up -d postgres mailpit valkey backend worker frontend
@@ -189,9 +189,9 @@ exec: ## Interactive command in a one-off container against an environment (requ
 	@case "$(env)" in staging|production) ;; *) echo "Usage: make exec env=staging|production [svc=backend|frontend|db|valkey] [cmd='...']"; exit 1;; esac
 	@KAMAL=$(KAMAL) deploy/exec.sh $(env) $(or $(svc),backend) $(if $(cmd),'$(cmd)')
 
-obs-deploy: ## Boot or apply config changes of the server's observability stack (optional: svc=otel-collector|prometheus|loki|grafana, default all; first=1 for the first boot)
+obs-deploy: ## Boot or apply config changes of the server's observability stack (optional: svc=otel-collector|prometheus|loki|tempo|grafana, default all; first=1 for the first boot)
 	@KAMAL=$(KAMAL) deploy/obs.sh $(if $(first),boot,reboot) $(or $(svc),all)
 
-obs-logs: ## Log tail of a server observability service (required: svc=otel-collector|prometheus|loki|grafana; optional: lines=100)
-	@test -n "$(svc)" || { echo "Usage: make obs-logs svc=otel-collector|prometheus|loki|grafana [lines=100]"; exit 1; }
+obs-logs: ## Log tail of a server observability service (required: svc=otel-collector|prometheus|loki|tempo|grafana; optional: lines=100)
+	@test -n "$(svc)" || { echo "Usage: make obs-logs svc=otel-collector|prometheus|loki|tempo|grafana [lines=100]"; exit 1; }
 	@KAMAL=$(KAMAL) deploy/obs.sh logs $(svc) $(or $(lines),100)

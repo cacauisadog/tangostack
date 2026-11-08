@@ -1,6 +1,6 @@
-# The part of the collector that is the same everywhere: receives the app's metrics and
-# logs over OTLP/HTTP, batches, and exports metrics to Prometheus (which scrapes :8889)
-# and logs to Loki. It is merged with an overlay that adds what the stack has to collect
+# The part of the collector that is the same everywhere: receives the app's metrics,
+# logs and traces over OTLP/HTTP, batches, and exports metrics to Prometheus (which
+# scrapes :8889), logs to Loki and traces to Tempo (after tail sampling). It is merged with an overlay that adds what the stack has to collect
 # and defines the metrics pipelines: otel-collector.dev.yaml (docker compose) or
 # otel-collector.prod.yaml (Kamal):  --config=<this file> --config=<overlay>
 receivers:
@@ -11,6 +11,21 @@ receivers:
 
 processors:
   batch: {}
+  # Decide per trace, once it is complete (10s after its first span): keep every trace
+  # with an error and every slow one, plus 10% of the rest. A trace is kept if any
+  # policy matches.
+  tail_sampling:
+    decision_wait: 10s
+    policies:
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow
+        type: latency
+        latency: { threshold_ms: 500 }
+      - name: sample
+        type: probabilistic
+        probabilistic: { sampling_percentage: 10 }
 
 exporters:
   prometheus:
@@ -19,6 +34,10 @@ exporters:
       enabled: true
   otlp_http/loki:
     endpoint: http://loki:3100/otlp
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
 
 service:
   pipelines:
@@ -26,3 +45,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlp_http/loki]
+    traces:
+      receivers: [otlp]
+      processors: [tail_sampling, batch]
+      exporters: [otlp_grpc/tempo]

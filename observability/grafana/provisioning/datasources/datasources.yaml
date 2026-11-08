@@ -9,3 +9,17 @@ datasources:
     uid: loki
     type: loki
     url: http://loki:3100
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    url: http://tempo:3200
+    jsonData:
+      # a trace links to the logs that carry its trace ID
+      tracesToLogsV2:
+        datasourceUid: loki
+        tags: [{ key: service.name, value: service_name }]
+        customQuery: true
+        query: '{${__tags}} | trace_id="${__trace.traceId}"'
+      # and to the request-rate / error / latency of its service
+      serviceMap:
+        datasourceUid: prometheus

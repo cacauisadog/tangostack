@@ -147,7 +147,7 @@ services:
       - ./dkdata/caddy/config:/config
 
   # Observability (opt-in: `make obs`). The app sends metrics and logs to the collector
-  # (only when OTEL_ENABLED is on), which feeds Prometheus and Loki; Grafana at
+  # (only when OTEL_ENABLED is on), which feeds Prometheus, Loki and Tempo; Grafana at
   # http://localhost:3001 shows them. Ports are bound to localhost.
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.164.0
@@ -185,6 +185,15 @@ services:
       - ./observability/loki.yaml:/etc/loki/config.yaml:ro
       - loki_data:/loki
 
+  tempo:
+    image: grafana/tempo:2.10.10
+    container_name: tangostack__tempo
+    profiles: [observability]
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/var/tempo
+
   grafana:
     image: grafana/grafana:13.3.0
     container_name: tangostack__grafana
@@ -203,10 +212,12 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
 volumes:
   prometheus_data:
   loki_data:
+  tempo_data:
   grafana_data:
   frontend_node_modules:
   frontend_claude_skills:

@@ -893,12 +893,169 @@
       "description": "Bytes per second read from and written to the physical disks."
     },
     {
+      "id": 29,
+      "type": "row",
+      "title": "Traces (kept by tail sampling: errors, over 500 ms, 10% of the rest)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 63,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 30,
+      "title": "Slow traces (over 500 ms)",
+      "description": "Click a trace ID to open its waterfall.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"tangostack-.+\" && resource.deployment.environment.name =~ \"${environment:regex}\" && duration > 500ms }",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 31,
+      "title": "Traces with errors",
+      "description": "Spans that ended in an error status (5xx responses, exceptions, failed tasks).",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"tangostack-.+\" && resource.deployment.environment.name =~ \"${environment:regex}\" && status = error }",
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 32,
+      "title": "Slow SQL queries (over 100 ms)",
+      "description": "The queries, with the trace they ran in. Only queries inside a kept trace are listed.",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ span.db.system = \"postgresql\" && resource.deployment.environment.name =~ \"${environment:regex}\" && duration > 100ms }",
+          "limit": 20,
+          "tableType": "spans"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 33,
+      "title": "Celery tasks (slowest kept)",
+      "description": "Worker spans, one per task run.",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"tangostack-worker\" && resource.deployment.environment.name =~ \"${environment:regex}\" && name =~ \"run/.*\" }",
+          "limit": 20,
+          "tableType": "spans"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
       "id": 19,
       "type": "row",
       "title": "Logs",
       "gridPos": {
         "x": 0,
-        "y": 63,
+        "y": 80,
         "w": 24,
         "h": 1
       },
@@ -911,7 +1068,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 81,
         "w": 24,
         "h": 6
       },
@@ -950,7 +1107,7 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 70,
+        "y": 87,
         "w": 24,
         "h": 12
       },

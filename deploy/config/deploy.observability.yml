@@ -1,6 +1,6 @@
 # Kamal stack for observability (see "Observability" in AGENTS.md): ONE stack for every
 # environment on the host. The backends send OTLP to the collector, which feeds
-# Prometheus (metrics) and Loki (logs); Grafana is the only thing exposed, at
+# Prometheus (metrics), Loki (logs) and Tempo (traces); Grafana is the only thing exposed, at
 # GRAFANA_HOST behind kamal-proxy. Only accessories, no app: manage it with
 # `make obs-deploy` / `make obs-logs` (deploy/obs.sh), never `kamal deploy`.
 #
@@ -72,6 +72,18 @@ accessories:
       - tangostack-observability-loki:/loki
     options:
       network-alias: loki
+
+  tempo:
+    image: grafana/tempo:2.10.10
+    host: <%= ENV.fetch("DEPLOY_HOST") %>
+    # 7 days (overrides block_retention in tempo.yaml)
+    cmd: -config.file=/etc/tempo/config.yaml -compactor.compaction.block-retention=168h
+    files:
+      - observability/tempo.yaml:/etc/tempo/config.yaml
+    volumes:
+      - tangostack-observability-tempo:/var/tempo
+    options:
+      network-alias: tempo
 
   grafana:
     image: grafana/grafana:13.3.0

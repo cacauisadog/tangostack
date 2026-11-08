@@ -63,7 +63,7 @@ def test_the_log_handler_is_attached_once_and_reattached_when_django_resets_logg
             logging.getLogger(name).removeHandler(handler)
 
 
-def test_enabling_it_instruments_django_and_ships_logs():
+def test_enabling_it_instruments_django_psycopg_and_celery_and_ships_logs():
     """In a fresh interpreter: the instrumentation is global and must not leak here."""
     code = """
 import logging, django
@@ -71,6 +71,10 @@ django.setup()
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from tangostack import telemetry
 assert DjangoInstrumentor().is_instrumented_by_opentelemetry
+from opentelemetry.instrumentation.celery import CeleryInstrumentor
+from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+assert CeleryInstrumentor().is_instrumented_by_opentelemetry
+assert PsycopgInstrumentor().is_instrumented_by_opentelemetry
 resource = telemetry._resource().attributes
 assert resource["deployment.environment.name"] == "staging"
 assert resource["service.name"] == "tangostack-worker"

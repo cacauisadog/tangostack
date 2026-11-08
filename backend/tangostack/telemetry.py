@@ -1,7 +1,7 @@
-"""OpenTelemetry: request metrics and logs, sent over OTLP/HTTP to a collector.
+"""OpenTelemetry: request metrics, logs and traces, sent over OTLP/HTTP to a collector.
 
 Off unless OTEL_ENABLED is set (see settings.py); nothing from OpenTelemetry is
-imported otherwise. `make obs` starts the local collector, Prometheus, Loki and
+imported otherwise. `make obs` starts the local collector, Prometheus, Loki, Tempo and
 Grafana. Called from CoreConfig.ready(), so every entry point (runserver, gunicorn,
 management commands) is covered, and once per process.
 """
@@ -64,17 +64,22 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
 
     from celery.signals import after_setup_logger
-    from opentelemetry import metrics
+    from opentelemetry import metrics, trace
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
         OTLPMetricExporter,
     )
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.instrumentation.celery import CeleryInstrumentor
     from opentelemetry.instrumentation.django import DjangoInstrumentor
     from opentelemetry.instrumentation.logging.handler import LoggingHandler
+    from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
     from opentelemetry.sdk._logs import LoggerProvider
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.rstrip("/")
     resource = _resource()
@@ -86,6 +91,14 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
     metrics.set_meter_provider(
         MeterProvider(resource=resource, metric_readers=[reader])
     )
+
+    # Every span goes to the collector, which keeps the interesting traces (tail
+    # sampling, see observability/otel-collector.yaml).
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces"))
+    )
+    trace.set_tracer_provider(tracer_provider)
 
     logger_provider = LoggerProvider(resource=resource)
     logger_provider.add_log_record_processor(
@@ -105,7 +118,12 @@ def _start():  # pragma: no cover (exercised in a subprocess: test_telemetry.py)
     logging.getLogger().setLevel(logging.INFO)
 
     # Static files and silk's own pages would only add noise to the endpoint stats.
-    DjangoInstrumentor().instrument(excluded_urls="static/.*,silk/.*")
+    DjangoInstrumentor().instrument(
+        excluded_urls="static/.*,silk/.*,api/health", tracer_provider=tracer_provider
+    )
+    # Spans for each query and each Celery task (linked to the request that queued it).
+    PsycopgInstrumentor().instrument(tracer_provider=tracer_provider)
+    CeleryInstrumentor().instrument(tracer_provider=tracer_provider)
     # It puts its middleware first, and that one reads the request's host (which
     # ALLOWED_HOSTS rejects for the container probe): the health check goes back to
     # the front, before anything looks at the host.
